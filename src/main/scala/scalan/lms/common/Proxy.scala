@@ -34,7 +34,7 @@ trait ProxyExp extends ProxyBase with BaseExp { self: ArraysBase =>
       //TODO: Make a check when constructing proxy, not when executing it. Also, check using
       //reflection by enumerating all methods and checking their signatures
       val args_ = (args == null) match { case true => Array.empty case _ => args }
-      val elems = args.seq collect { case e: Elem[_] => e.asInstanceOf[Elem[AnyRef]] }
+      val elems = args.toSeq collect { case e: Elem[_] => e.asInstanceOf[Elem[AnyRef]] }
       elems.length == 0 match {
         case true =>
           !!!("Domain specific operation " + m.getName + " of class " + m.getDeclaringClass.getName +
