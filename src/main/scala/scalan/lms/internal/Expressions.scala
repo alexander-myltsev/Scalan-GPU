@@ -114,6 +114,8 @@ trait Expressions { self: ArraysBase =>
   class TP[T](val sym: Sym[T], val definition: Option[Def[T]]) {
     def rhs: Def[T] = definition.getOrElse(evaluate)
     def evaluate: Def[T] = !!!("invalid definition " + this, sym.asInstanceOf[Rep[T]])
+
+    override def toString = "TP[" + sym + ": " + rhs + "]"
   }
   object TP {
     def apply[T](sym: Sym[T])(eval: => Def[T]) = new TP(sym, None) { override def evaluate = eval }
