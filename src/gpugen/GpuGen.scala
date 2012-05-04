@@ -4,7 +4,7 @@ import internal._
 import scalan.staged._
 import scalan.samples.DslSamples
 import scalan.dsl.ArraysBase
-import java.io.{FileWriter, ByteArrayOutputStream, PrintWriter}
+import java.io.{ FileWriter, ByteArrayOutputStream, PrintWriter }
 import scalan.dsl._
 
 /*
@@ -84,7 +84,7 @@ trait GpuGen extends GenericCodegen {
         } {
           throw new GenerationFailedException("Don'n know how to generate " + a)
         }
-      case eba@ExpBinopArray((np: NumericPlus[_]), s1, s2) =>
+      case eba @ ExpBinopArray((np: NumericPlus[_]), s1, s2) =>
         stream.println("// -----")
         //stream.println(np)
         //stream.println(s1)
@@ -144,58 +144,81 @@ trait GpuGen extends GenericCodegen {
   }
 }
 
-object GpuGenTest {
-  val scln = new ScalanStaged with GpuGen
-
-  import scln._
-
+trait GpuArrayOperations extends ScalanStaged {
   /*
-  def main1(args: Array[String]): Unit = {
-    val a1 = Array(10f, 20f, 30f)
-    val a2 = Array(10f, 10f, 10f)
-
-    val dotP = (arrs: Rep[(Array[Float], Array[Float])]) => {
-      val Pair(a, b) = arrs
-      val v1 = fromArray(a)
-      val v2 = fromArray(b)
-      dotProduct(v1, v2)
-    }
-
-    val test1 = (a: Rep[Array[Float]]) => {
-      val v = fromArray(a)
-      v
-    }
-
-    val test2 = (a: Rep[Array[Float]]) => {
-      val v1 = fromArray(Array(1f, 2f, 3f, 4f, 5f, 6f, 7f))
-      val v2 = fromArray(a)
-      binPlus(v1, v2)
-    }
-
-    //emitDepGraph(dotP(a1, a2), "somegraph.dot", false)
-    emitSource(test2, "mainFun", new PrintWriter(System.out))
+  def stdArrayOperations(): Rep[Boolean] = {
+    val arr = Array(1, 2, 3)
+    val parr = fromArray(toRep(arr))
+    parr.length == toRep(3) && !(parr.length == toRep(3))
   }
-  */
+*/
 
   type Vector = PArray[Float]
+
   def dotProduct(v1: Rep[Vector], v2: Rep[Vector]): Rep[Float] =
-    sum((v1 zip v2) map { case Pair(f1, f2) => f1 * f2 })
+    sum((v1 zip v2) map {
+      case Pair(f1, f2) => f1 * f2
+    })
+
+  val arr1 = Array(1, 2, 3)
+  val arr2 = Array(10, 20, 30)
+
+  val dotP = (arrs: Rep[(Array[Float], Array[Float])]) => {
+    val Pair(a, b) = arrs
+    val v1 = fromArray(a)
+    val v2 = fromArray(b)
+    dotProduct(v1, v2)
+  }
+
+  val dotP1 = (arr: Rep[Array[Int]]) => {
+    val v = fromArray(arr)
+    sum(v)
+  }
+
+  def runProcess(procCmd: String) = {
+    System.out.println("===== Running: \n" + procCmd)
+    val buffer = new Array[Byte](1024)
+    val proc = Runtime.getRuntime.exec(procCmd)
+    System.out.println("===== Input stream: ")
+    Stream.continually(proc.getInputStream.read(buffer)).takeWhile(-1 !=).foreach(len => System.out.print(new String(buffer, 0, len, "UTF-8")))
+    System.out.println("===== Error stream: ")
+    Stream.continually(proc.getErrorStream.read(buffer)).takeWhile(-1 !=).foreach(len => System.out.print(new String(buffer, 0, len, "UTF-8")))
+  }
+}
+
+object GpuGenGraphTest {
+  val oGrp = new GpuArrayOperations with GraphVizExport
+  import oGrp._
+
+  def generate[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): Unit = {
+    val x = fresh[A]
+    val y = lam(x)
+
+    case class Result[T](x: Rep[T]) extends Def[T]
+    System.out.println(globalDefs.mkString("globalDefs:[\n\t", ",\n\t", "\n]"))
+    val yR = Result(y)
+    emitDepGraph(toExp(Result(y)), "/host/Keldysh/prj/Scalan-v2/gpugen.dot", false)
+    runProcess("dot /host/Keldysh/prj/Scalan-v2/gpugen.dot -Tpng -O")
+  }
 
   def main(args: Array[String]): Unit = {
-    val arr1 = Array(1, 2, 3)
-    val arr2 = Array(10, 20, 30)
+    generate(mkLambda(dotP1))
+  }
+}
 
-    val dotP = (arrs: Rep[(Array[Float], Array[Float])]) => {
-      val Pair(a, b) = arrs
-      val v1 = fromArray(a)
-      val v2 = fromArray(b)
-      dotProduct(v1, v2)
-    }
+object GpuGenTest {
+  //val scln = new ScalanStaged with GpuGen
+  //val scln1 = new Scalan with GraphVizExport
 
-    val dotP1 = (arr: Rep[Array[Float]]) => {
-      val v = fromArray(arr)
-      sum(v)
-    }
+  //import scln._
+
+  val oGpu = new GpuArrayOperations with GpuGen
+
+  import oGpu._
+
+  def main(args: Array[String]): Unit = {
+    //compile(oGpu.mkLambda(oGpu.dotP1)(oGpu.arrayElement[Int], oGpu.intElement))(oGpu.arrayElement[Int], oGpu.intElement)
+    compile(mkLambda(dotP1))
 
     /*
     val test2 = (a: Rep[Array[Float]]) => {
@@ -214,10 +237,10 @@ object GpuGenTest {
 
     //val fexpr: Rep[Array[Float] => PArray[Float]] = mkLambda(test2)
     // some user defined function for example dotP
-    val fexpr: Rep[Pair[Array[Float], Array[Float]] => Float] = mkLambda(dotP)
+    //val fexpr: Rep[Pair[Array[Float], Array[Float]] => Float] = mkLambda(dotP)
     //val fexpr: Rep[(Array[Float], Array[Float]) => Float] = mkLambda(dotP) // TODO: Why compilation Error?
 
-    val f: Pair[Array[Float], Array[Float]] => Float = compile(fexpr) // thus compile just removes Rep[_]
+    //val f: Pair[Array[Float], Array[Float]] => Float = compile(fexpr) // thus compile just removes Rep[_]
     //val f: (Array[Float]) => PArray[Float] = compile(fexpr) // thus compile just removes Rep[_]
     //val arr = (10 to 16).map(_.toFloat).toArray
     //val res = f(arr)
@@ -245,6 +268,8 @@ object GpuGenTest {
   }
   */
 
+  //  import oGpu._
+
   def compile[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): A => B = {
 
     val bytesStream = new ByteArrayOutputStream
@@ -258,21 +283,20 @@ object GpuGenTest {
     //stream.println(globalDefs.mkString("globalDefs:[", ", ", "]"))
 
     val x = fresh[A]
-    val y = lam(x)
+    val y: Rep[B] = lam(x)
+
+    System.out.println("x: " + x)
+    System.out.println("y: " + y)
+    System.out.println(globalDefs.mkString("globalDefs:[\n\t", ",\n\t", "\n]"))
 
     //val sA = eA.manifest.toString
     //val sB = eB.manifest.toString
-
-    System.out.println(x)
-    System.out.println(y)
-    System.out.println(globalDefs.mkString("globalDefs:[\n\t", ",\n\t", "\n]"))
 
     globDefsArr = globalDefs.toArray
 
     stream.println("/*****************************************\n" +
       "  Emitting Generated Code                  \n" +
       "*******************************************/")
-
 
     stream.println("""
 #include <thrust/device_vector.h>
@@ -288,16 +312,15 @@ using namespace thrust;
 """)
 
     //generatePrologue(x, eB)(stream)
-    /*
     emitBlock(y)(stream)
     val resq = quote(getBlockResult(y))
     stream.println("out_size = " + resq + ".size();")
     stream.println("float* " + resq + "_tmp = new float[out_size];")
     stream.println("thrust::copy(" + resq + ".begin(), " + resq + ".end(), " + resq + "_tmp);")
     stream.println("return " + resq + "_tmp;")
-    */
 
     // Test output
+    /*
     stream.println("""
 device_vector<int>* test(device_vector<int>* x) {
   device_vector<int>* x_out = new device_vector<int>(x->size());
@@ -307,6 +330,7 @@ device_vector<int>* test(device_vector<int>* x) {
   //    cout << (*x_out)[i] << " " << flush;
   //}
   return x_out;""")
+  */
 
     stream.println("}")
     stream.println("/*****************************************\n" +
@@ -353,16 +377,6 @@ device_vector<int>* test(device_vector<int>* x) {
       }
     }
     r
-  }
-
-  def runProcess(procCmd: String) = {
-    System.out.println("===== Running: \n" + procCmd)
-    val buffer = new Array[Byte](1024)
-    val proc = Runtime.getRuntime.exec(procCmd)
-    System.out.println("===== Input stream: ")
-    Stream.continually(proc.getInputStream.read(buffer)).takeWhile(-1 !=).foreach(len => System.out.print(new String(buffer, 0, len, "UTF-8")))
-    System.out.println("===== Error stream: ")
-    Stream.continually(proc.getErrorStream.read(buffer)).takeWhile(-1 !=).foreach(len => System.out.print(new String(buffer, 0, len, "UTF-8")))
   }
 
   /*

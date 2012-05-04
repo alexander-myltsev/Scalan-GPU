@@ -19,6 +19,8 @@ abstract class MonoidLow {
     val zero = z.zero
     def opName = s.opName
     def isInfix = s.isInfix
+
+    override def toString = "[MonoidLow: '" + opName + "' | " + zero + "]"
   }
 }
 
