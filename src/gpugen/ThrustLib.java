@@ -88,7 +88,8 @@ public class ThrustLib {
     */
 
     @Name("test")
-    public native static @ByPtr DeviceVectorPointer test(@ByPtr DeviceVectorPointer dvp);
+    //public native static @ByPtr DeviceVectorPointer test(@ByPtr DeviceVectorPointer dvp);
+    public native static int test(@ByPtr DeviceVectorPointer dvp);
 
     @Name("thrust::make_tuple<int, int>")
     public native static @ByVal TupleIntInt makeTuple(int a, int b);

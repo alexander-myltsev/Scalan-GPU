@@ -96,7 +96,7 @@ trait Expressions { self: ArraysBase =>
         case false => {
           val s = "Sym(" + id + ")"
           val suffix = isVar match {
-            case true => ": " + Elem.name
+            case true => " (var): " + Elem.name
             case _ => ""
           }
           s + suffix

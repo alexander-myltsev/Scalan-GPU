@@ -107,9 +107,28 @@ trait GpuGen extends GenericCodegen {
         stream.println("nt")
         throw new Exception("Not implemented")
       case (as: ArraySum[_]) =>
-        val k = findDefinition(as)
-        // TODO: How to translate this? Seems like bug.
-        throw new Exception("Not implemented")
+        //stream.println(as.m.opName)
+        //stream.println(as.m.zero.toString)
+
+        val typeS = as.x.Elem.manifest.toString match {
+          // TODO: how to analyse types instead of strings?
+          // TODO: Actually result type should be most appropriate of Array[T] and Zero type
+          case "Array[Float]" => "float"
+          case "Array[Int]" => "int"
+        }
+        stream.print(typeS + " ")
+
+        as.x.isVar match {
+          // TODO: Why 'if (as.x.isVar)' throws cast exception?
+          case true =>
+            stream.print(quote(sym) + " = ")
+            stream.print("thrust::reduce(" + quote(as.x) + "->begin(), " + quote(as.x) + "->end(), ")
+            stream.println(as.m.zero.toString + ", " + remapOp(as.m.opName) + "<" + typeS + ">());")
+          case false =>
+            !!!("Implement it")
+        }
+
+      //throw new Exception("Not implemented")
       case (lam: Lambda[_, _]) =>
         stream.println("lambda")
         throw new Exception("Not implemented")
@@ -126,9 +145,15 @@ trait GpuGen extends GenericCodegen {
     case "Boolean" => "bool"
     case "Unit" => "void"
     case "java.lang.String" => "char *"
-    case "Array[Float]" => "float*"
+    case "Array[Float]" => "device_vector<float>*"
+    case "Array[Int]" => "device_vector<int>*"
     case "scalan.dsl.ArraysBase$PArray[Float]" => "float*"
     case _ => throw new GenerationFailedException("CGen: remap(m) : Unknown data type (%s)".format(m.toString))
+  }
+
+  def remapOp(op: String) = op match {
+    case "+" => "thrust::plus"
+    case _ => !!!("Unexpected operation")
   }
 
   def emitValDef(sym: Sym[_], rhs: String)(implicit stream: PrintWriter): Unit = {
@@ -188,6 +213,7 @@ trait GpuArrayOperations extends ScalanStaged {
 
 object GpuGenGraphTest {
   val oGrp = new GpuArrayOperations with GraphVizExport
+
   import oGrp._
 
   def generate[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): Unit = {
@@ -218,7 +244,10 @@ object GpuGenTest {
 
   def main(args: Array[String]): Unit = {
     //compile(oGpu.mkLambda(oGpu.dotP1)(oGpu.arrayElement[Int], oGpu.intElement))(oGpu.arrayElement[Int], oGpu.intElement)
-    compile(mkLambda(dotP1))
+    val f: (Array[Int]) => Int = compile(mkLambda(dotP1))
+    val arr = (10 to 16).toArray
+    val res = f(arr)
+    System.out.println(res)
 
     /*
     val test2 = (a: Rep[Array[Float]]) => {
@@ -247,17 +276,30 @@ object GpuGenTest {
     //System.out.println(res)
   }
 
-  /*
-  def generatePrologue(sx: Sym[_], eRes: Elem[_])(implicit stream: PrintWriter): Unit = {
-    sx.Elem match {
+  def generateFunSignature(sx: Sym[_], eRes: Elem[_])(implicit stream: PrintWriter): Unit = {
+    // TODO: Any better way to analyze types?
+    // TODO: Should be pattern: stream.println(remap(RES_TYPE_str) + " test(" + remap(IN_TYPE_str) + ") {")
+    eRes.manifest.erasure.getSimpleName match {
+      case "int" => stream.print(remap(eRes.manifest) + " ")
+      case _ => !!!("Unexpected. Implement it")
+    }
+
+    sx.Elem.manifest.erasure.getSimpleName match {
+      case "int[]" => stream.println("test(" + remap(sx.Elem.manifest) + " " + quote(sx) + ") {")
+      case _ => !!!("Unexpected type")
+    }
+
+    /*
+    // NOTE: Does not work because of erasure :(
+    sx.Elem match { 
       case (p: PairElem[_, _]) =>
         !!!("TODO: implement Pair")
-      //generatePrologue(p.ea, eRes)
-      //generatePrologue(p.eb, eRes)
-      case (i: Elem[Int]) =>
-        !!!("TODO: implement Int")
-      case (f: Elem[Float]) =>
+      //generateFunSignature(p.ea, eRes)
+      //generateFunSignature(p.eb, eRes)
+      case (f: Element[Float]) =>
         !!!("TODO: implement Float")
+      case (f: Element[Int]) => stream.println("test(int " + quote(sx) + ") {")
+      //case (i: Elem[Int]) => stream.println("test(int " + quote(sx) + ") {")
       case (arr: Elem[Array[_]]) =>
         val xq = quote(sx)
         stream.println("""extern "C" """ + remap(eRes.manifest) + " fun(" + remap(sx.Elem.manifest) + " " + xq + "_tmp, int size, int& out_size) {")
@@ -265,8 +307,8 @@ object GpuGenTest {
       case t =>
         !!!("Unexpected type " + t)
     }
+    */
   }
-  */
 
   //  import oGpu._
 
@@ -275,8 +317,14 @@ object GpuGenTest {
     val bytesStream = new ByteArrayOutputStream
     val stream = new PrintWriter(bytesStream, true) {
       override def println(s: String) = {
-        System.out.println(s)
+        //System.out.println(s)
         super.println(s)
+        System.out.println()
+      }
+
+      override def print(s: String) = {
+        System.out.print(s)
+        super.print(s)
       }
     }
     //val stream = new PrintWriter(System.out, true)
@@ -285,8 +333,8 @@ object GpuGenTest {
     val x = fresh[A]
     val y: Rep[B] = lam(x)
 
-    System.out.println("x: " + x)
-    System.out.println("y: " + y)
+    System.out.println("x: " + x.toString)
+    System.out.println("y: " + y.toString)
     System.out.println(globalDefs.mkString("globalDefs:[\n\t", ",\n\t", "\n]"))
 
     //val sA = eA.manifest.toString
@@ -311,13 +359,14 @@ object GpuGenTest {
 using namespace thrust;
 """)
 
-    //generatePrologue(x, eB)(stream)
+    generateFunSignature(x, eB)(stream)
     emitBlock(y)(stream)
     val resq = quote(getBlockResult(y))
-    stream.println("out_size = " + resq + ".size();")
-    stream.println("float* " + resq + "_tmp = new float[out_size];")
-    stream.println("thrust::copy(" + resq + ".begin(), " + resq + ".end(), " + resq + "_tmp);")
-    stream.println("return " + resq + "_tmp;")
+    //    stream.println("out_size = " + resq + ".size();")
+    //    stream.println("float* " + resq + "_tmp = new float[out_size];")
+    //    stream.println("thrust::copy(" + resq + ".begin(), " + resq + ".end(), " + resq + "_tmp);")
+    //    stream.println("return " + resq + "_tmp;")
+    stream.println("return " + resq + ";")
 
     // Test output
     /*
@@ -349,20 +398,21 @@ device_vector<int>* test(device_vector<int>* x) {
     //runProcess("nvcc --ptxas-options=-v --compiler-options '-fPIC' -o tmp/fun.so --shared tmp/fun.cu")
     runProcess("/usr/lib/jvm/java-oracle-jdk1.7.0_01/bin/java -Dfile.encoding=UTF-8 -classpath /usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/plugin.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/deploy.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/rt.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/jce.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/javaws.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/charsets.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/alt-rt.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/jsse.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/management-agent.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/resources.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/dnsns.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/localedata.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunec.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunpkcs11.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/zipfs.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunjce_provider.jar:/host/Keldysh/prj/Scalan-v2/out/production/Scalan-v2:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/jline.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-compiler.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-dbc.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-library.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-partest.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-swing.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scalacheck.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scalap.jar:/host/Keldysh/prj/Scalan-v2/lib/junit-4.10.jar:/host/Keldysh/prj/Scalan-v2/lib/maven-plugin-api-2.0.10.jar:/home/kate/idea-IC-117.105/lib/idea_rt.jar com.googlecode.javacpp.Builder gpugen.ThrustLib -properties linux-x86_64-cuda")
 
+    /*
+    // How to use ThrustLib.java
     val vp_in = new gpugen.ThrustLib.DeviceVectorPointer
     (0 to 128).foreach(x => vp_in push_back x)
     val vp_out = gpugen.ThrustLib.test(vp_in)
     for (i <- 0 to 127) {
       System.out.print(vp_out.get(i) + " ")
     }
+*/
 
     val r: A => B = (x: A) => {
       x match {
         case (x: Float) =>
           !!!("not implemented")
         case (x: Int) =>
-          !!!("not implemented")
-        case (x: Array[Int]) =>
           !!!("not implemented")
         case (arr: Array[Float]) =>
           /*
@@ -372,6 +422,12 @@ device_vector<int>* test(device_vector<int>* x) {
           arr_out.asInstanceOf[B] // TODO: How to return PArray(Array(Float))
           */
           !!!("Unexpected type")
+        case (x: Array[Int]) =>
+          val vp_in = new gpugen.ThrustLib.DeviceVectorPointer
+          (0 to 128).foreach(x => vp_in push_back x) // TODO: replace (0 to 128) with x.
+          val out = gpugen.ThrustLib.test(vp_in)
+          System.out.println(out)
+          !!!("not implemented") // TODO: return out
         case _ =>
           !!!("Unexpected type")
       }

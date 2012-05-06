@@ -20,7 +20,7 @@ abstract class MonoidLow {
     def opName = s.opName
     def isInfix = s.isInfix
 
-    override def toString = "[MonoidLow: '" + opName + "' | " + zero + "]"
+    override def toString = "[Monoid: '" + opName + "' | " + zero + "]"
   }
 }
 
