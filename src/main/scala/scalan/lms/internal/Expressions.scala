@@ -95,11 +95,10 @@ trait Expressions { self: ArraysBase =>
       val res = isDebug match {
         case false => {
           val s = "Sym(" + id + ")"
-          val suffix = isVar match {
-            case true => " (var): " + Elem.name
-            case _ => ""
+          isVar match {
+            case true => "var_" + s + ": " + Elem.name
+            case _ => s
           }
-          s + suffix
         }
         case _ =>
           val rhs = findDefinition(this) match { case Some(TP(_, d)) => "->" + d.toString case _ => "" }

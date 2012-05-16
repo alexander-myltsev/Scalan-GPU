@@ -4,7 +4,7 @@ import internal._
 import scalan.staged._
 import scalan.samples.DslSamples
 import scalan.dsl.ArraysBase
-import java.io.{ FileWriter, ByteArrayOutputStream, PrintWriter }
+import java.io.{FileWriter, ByteArrayOutputStream, PrintWriter}
 import scalan.dsl._
 
 /*
@@ -84,7 +84,7 @@ trait GpuGen extends GenericCodegen {
         } {
           throw new GenerationFailedException("Don'n know how to generate " + a)
         }
-      case eba @ ExpBinopArray((np: NumericPlus[_]), s1, s2) =>
+      case eba@ExpBinopArray((np: NumericPlus[_]), s1, s2) =>
         stream.println("// -----")
         //stream.println(np)
         //stream.println(s1)
@@ -195,9 +195,16 @@ trait GpuArrayOperations extends ScalanStaged {
     dotProduct(v1, v2)
   }
 
-  val dotP1 = (arr: Rep[Array[Int]]) => {
+  val simpleSum = (arr: Rep[Array[Int]]) => {
     val v = fromArray(arr)
     sum(v)
+  }
+
+  val simpleUnpair = (arrs: Rep[(Array[Int], Array[(Int, Float)])]) => {
+    val Pair(a, b) = arrs
+    //val v1 = fromArray(a)
+    val v2 = fromArray(b)
+    v2
   }
 
   def runProcess(procCmd: String) = {
@@ -212,7 +219,17 @@ trait GpuArrayOperations extends ScalanStaged {
 }
 
 object GpuGenGraphTest {
-  val oGrp = new GpuArrayOperations with GraphVizExport
+  val oGrp = new GpuArrayOperations with GraphVizExport {
+    override def emitNode(sym: Sym[_], rhs: Def[_])(implicit stream: PrintWriter) = {
+      super.emitNode(sym, rhs)
+      rhs match {
+        case d: PADef[_] => stream.println("color=blue")
+        case arr: ArrayDef[_] => stream.println("color=green")
+        case l: Lambda[_, _] => stream.println("color=red")
+        case _ =>
+      }
+    }
+  }
 
   import oGrp._
 
@@ -222,13 +239,13 @@ object GpuGenGraphTest {
 
     case class Result[T](x: Rep[T]) extends Def[T]
     System.out.println(globalDefs.mkString("globalDefs:[\n\t", ",\n\t", "\n]"))
-    val yR = Result(y)
-    emitDepGraph(toExp(Result(y)), "/host/Keldysh/prj/Scalan-v2/gpugen.dot", false)
-    runProcess("dot /host/Keldysh/prj/Scalan-v2/gpugen.dot -Tpng -O")
+    emitDepGraph(toExp(Result(y)), "/host/Keldysh/prj/Scalan-v2/tmp/gpugen.dot", false)
+    runProcess("dot /host/Keldysh/prj/Scalan-v2/tmp/gpugen.dot -Tpng -O")
   }
 
   def main(args: Array[String]): Unit = {
-    generate(mkLambda(dotP1))
+    //generate(mkLambda(simpleSum))
+    generate(mkLambda(dotP))
   }
 }
 
@@ -243,8 +260,8 @@ object GpuGenTest {
   import oGpu._
 
   def main(args: Array[String]): Unit = {
-    //compile(oGpu.mkLambda(oGpu.dotP1)(oGpu.arrayElement[Int], oGpu.intElement))(oGpu.arrayElement[Int], oGpu.intElement)
-    val f: (Array[Int]) => Int = compile(mkLambda(dotP1))
+    //compile(oGpu.mkLambda(oGpu.simpleSum)(oGpu.arrayElement[Int], oGpu.intElement))(oGpu.arrayElement[Int], oGpu.intElement)
+    val f: (Array[Int]) => Int = compile(mkLambda(simpleSum))
     val arr = (10 to 16).toArray
     val res = f(arr)
     System.out.println(res)
@@ -346,7 +363,7 @@ object GpuGenTest {
       "  Emitting Generated Code                  \n" +
       "*******************************************/")
 
-    stream.println("""
+    stream.println( """
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
 #include <thrust/sequence.h>
@@ -357,7 +374,7 @@ object GpuGenTest {
 #include <iostream>
 
 using namespace thrust;
-""")
+                    """)
 
     generateFunSignature(x, eB)(stream)
     emitBlock(y)(stream)
@@ -398,15 +415,20 @@ device_vector<int>* test(device_vector<int>* x) {
     //runProcess("nvcc --ptxas-options=-v --compiler-options '-fPIC' -o tmp/fun.so --shared tmp/fun.cu")
     runProcess("/usr/lib/jvm/java-oracle-jdk1.7.0_01/bin/java -Dfile.encoding=UTF-8 -classpath /usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/plugin.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/deploy.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/rt.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/jce.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/javaws.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/charsets.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/alt-rt.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/jsse.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/management-agent.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/resources.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/dnsns.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/localedata.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunec.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunpkcs11.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/zipfs.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunjce_provider.jar:/host/Keldysh/prj/Scalan-v2/out/production/Scalan-v2:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/jline.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-compiler.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-dbc.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-library.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-partest.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-swing.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scalacheck.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scalap.jar:/host/Keldysh/prj/Scalan-v2/lib/junit-4.10.jar:/host/Keldysh/prj/Scalan-v2/lib/maven-plugin-api-2.0.10.jar:/home/kate/idea-IC-117.105/lib/idea_rt.jar com.googlecode.javacpp.Builder gpugen.ThrustLib -properties linux-x86_64-cuda")
 
-    /*
     // How to use ThrustLib.java
+    //val vp_in = new gpugen.ThrustLib.DeviceVectorPointer(Array[Int](1, 2, 3, 4, 5))
     val vp_in = new gpugen.ThrustLib.DeviceVectorPointer
-    (0 to 128).foreach(x => vp_in push_back x)
-    val vp_out = gpugen.ThrustLib.test(vp_in)
-    for (i <- 0 to 127) {
-      System.out.print(vp_out.get(i) + " ")
+    for (i <- 0 to 5) {
+      System.out.print(vp_in.get(i) + " ")
     }
-*/
+    (0 to 128).foreach(x => vp_in push_back x)
+    val val_out = gpugen.ThrustLib.test(vp_in)
+    /*
+        val vp_out = gpugen.ThrustLib.test(vp_in)
+        for (i <- 0 to 127) {
+          System.out.print(vp_out.get(i) + " ")
+        }
+    */
 
     val r: A => B = (x: A) => {
       x match {
@@ -423,7 +445,7 @@ device_vector<int>* test(device_vector<int>* x) {
           */
           !!!("Unexpected type")
         case (x: Array[Int]) =>
-          val vp_in = new gpugen.ThrustLib.DeviceVectorPointer
+          val vp_in = new gpugen.ThrustLib.DeviceVectorPointer()
           (0 to 128).foreach(x => vp_in push_back x) // TODO: replace (0 to 128) with x.
           val out = gpugen.ThrustLib.test(vp_in)
           System.out.println(out)

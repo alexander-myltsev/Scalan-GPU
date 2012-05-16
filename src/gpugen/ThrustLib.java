@@ -4,6 +4,8 @@ import com.googlecode.javacpp.*;
 import com.googlecode.javacpp.annotation.*;
 
 import java.io.PrintStream;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 
 @Platform(include = {
         "<thrust/device_vector.h>",
@@ -17,6 +19,19 @@ import java.io.PrintStream;
         includepath = {"/opt/cuda/include/"})
 public class ThrustLib {
     static { Loader.load(); }
+
+    @Name("thrust::host_vector<int>")
+    public static class HostVectorPointer extends Pointer {
+        static { Loader.load(); }
+
+        public HostVectorPointer() { allocate(); }
+
+        public HostVectorPointer(long n) { allocate(n); }
+
+        private native void allocate();
+
+        private native void allocate(long n);
+    }
 
     @Name("thrust::device_vector<int>")
     public static class DeviceVectorPointer extends Pointer {
