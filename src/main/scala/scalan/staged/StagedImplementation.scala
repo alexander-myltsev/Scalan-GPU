@@ -347,7 +347,7 @@ trait StagedImplementation extends StagedImplBase
     }
 
     override def scan(implicit m: Monoid[T]): PA[T] = ExpStdArray(arr.scan)
-    override def sum(implicit m: Monoid[T]): Rep[T] = ArraySum(arr, m)
+    override def sum(implicit m: Monoid[T]): Rep[T] = SumPA(this, m) //ArraySum(arr, m)
     override def toString = "BaseArray(" + arr.toString + ")"
   }
 

@@ -180,10 +180,11 @@ trait GpuArrayOperations extends ScalanStaged {
 
   type Vector = PArray[Float]
 
-  def dotProduct(v1: Rep[Vector], v2: Rep[Vector]): Rep[Float] =
-    sum((v1 zip v2) map {
-      case Pair(f1, f2) => f1 * f2
-    })
+  def dotProduct(v1: Rep[Vector], v2: Rep[Vector]): Rep[Float] = {
+    val v_zipped = v1 zip v2
+    val v_mapped = v_zipped map { case Pair(f1, f2) => f1 * f2 }
+    sum(v_mapped)
+  }
 
   val arr1 = Array(1, 2, 3)
   val arr2 = Array(10, 20, 30)
@@ -245,6 +246,7 @@ object GpuGenGraphTest {
 
   def main(args: Array[String]): Unit = {
     //generate(mkLambda(simpleSum))
+    //generate(mkLambda(simpleUnpair))
     generate(mkLambda(dotP))
   }
 }
