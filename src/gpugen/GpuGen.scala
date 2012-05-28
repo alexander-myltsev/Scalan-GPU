@@ -178,7 +178,10 @@ trait GpuArrayOperations extends ScalanStaged {
   }
 */
 
+  type VectorElem = (Int,Float)
+  type SparseVector = PArray[VectorElem]
   type Vector = PArray[Float]
+  type Matrix = PArray[SparseVector]
 
   def dotProduct(v1: Rep[Vector], v2: Rep[Vector]): Rep[Float] = {
     val v_zipped = v1 zip v2
@@ -201,11 +204,28 @@ trait GpuArrayOperations extends ScalanStaged {
     sum(v)
   }
 
+  val simpleMap = (arr: Rep[Array[Float]]) => {
+    val v = fromArray(arr)
+    v map ({ case f => f * f + 2f })
+  }
+
   val simpleUnpair = (arrs: Rep[(Array[Int], Array[(Int, Float)])]) => {
     val Pair(a, b) = arrs
     //val v1 = fromArray(a)
     val v2 = fromArray(b)
     v2
+  }
+
+  val sparseVectorMul = (sv_v: Rep[(SparseVector, Vector)]) => {
+    val Pair(sv, v) = sv_v
+    val sv_mapped = sv map { case Pair(i,value) =>  v(i) * value }
+    sum(sv_mapped)
+  //sum(sv map { p => { val (i,value) = lift(p);  v(i) * value} })
+  }
+
+  val matrixVectorMul = (mat_vec: Rep[(Matrix, Vector)]) => {
+    val Pair(mat, vec) = mat_vec
+    mat map {row => sparseVectorMul(row, vec)}
   }
 
   def runProcess(procCmd: String) = {
@@ -246,10 +266,34 @@ object GpuGenGraphTest {
 
   def main(args: Array[String]): Unit = {
     //generate(mkLambda(simpleSum))
+    //generate(mkLambda(simpleMap))
     //generate(mkLambda(simpleUnpair))
-    generate(mkLambda(dotP))
+    //generate(mkLambda(dotP))
+    generate(mkLambda(sparseVectorMul))
+    //generate(mkLambda(matrixVectorMul))
   }
 }
+
+/*
+object SeqTest {
+  import scalan.sequential.ScalanSequential
+  val scalanSeq = new GpuArrayOperations with ScalanSequential {
+    override val isDebug = false
+  }
+
+  import scalanSeq._
+
+  def main(args: Array[String]): Unit = {
+    val a1 = Array(10f, 20f, 30f)
+    val a2 = Array(10f, 10f, 10f)
+    val v1 = fromArray(a1)
+    val v2 = fromArray(a2)
+    //val prod = dotProduct2(v1, v2)
+    val stdprod = dotProduct(a1, a2)
+    println(stdprod)
+  }
+}
+*/
 
 object GpuGenTest {
   //val scln = new ScalanStaged with GpuGen

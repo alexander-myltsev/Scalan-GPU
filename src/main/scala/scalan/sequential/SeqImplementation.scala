@@ -305,7 +305,8 @@ trait SeqImplementation extends SeqImplBase {
 
     def map[R:Elem](f: ((A,B)) => R): PA[R] = {
       val len = length
-      element[R].tabulate(len)(i => f(a(i),b(i)))
+      val r = element[R].tabulate(len)(i => f(a(i),b(i)))
+      r
     }
 
     def slice(start: IntRep, len: IntRep) = new SeqPairArray(a.slice(start, len), b.slice(start, len))

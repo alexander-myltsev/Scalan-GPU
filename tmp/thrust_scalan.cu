@@ -59,17 +59,17 @@ namespace scalan_thrust {
       float res;
       switch (m.op()) {
       case monoid::OP_PLUS:
-	res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::plus<float>());
-	break;
+        res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::plus<float>());
+        break;
       case monoid::OP_MINUS:
-	res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::minus<float>());
-	break;
+        res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::minus<float>());
+        break;
       case monoid::OP_MUL:
-	res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::multiplies<float>());
-	break;
+        res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::multiplies<float>());
+        break;
       default:
-	// TODO: Handle an error
-	break;
+        // TODO: Handle an error
+        break;
       }
       return res;
     }
