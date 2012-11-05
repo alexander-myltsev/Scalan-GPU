@@ -1,4 +1,4 @@
-// NOTE: SMVM operation is encoded in form of FlatGraph nodes
+// NOTE: SVMV operation is encoded in form of FlatGraph nodes
 
 package scala.virtualization.lms
 
@@ -10,6 +10,9 @@ import java.io.{FileWriter, ByteArrayOutputStream, PrintWriter}
 import scalan.dsl._
 import scalan.common.Monoid
 import main.scala.gpugen.ThrustLib
+
+class GenerationFailedException(msg: String) extends Exception(msg) {
+}
 
 trait GpuGen extends GenericCodegen {
   self: ArraysBase with StagedImplementation =>
@@ -164,6 +167,10 @@ trait GpuGen extends GenericCodegen {
 
 trait GpuArrayOperations extends ScalanStaged {
   // TODO: Should be DSL instead of direct graph nodes generation.
+  def arraySum[T](s: Sym[Array[T]])(implicit m: Monoid[T]) = ArraySum(s, m)
+
+  def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
+
   def svmv = {
     val x = fresh[PArray[PArray[Pair[Int, Float]]]]
     val y = fresh[PArray[Float]]
@@ -179,7 +186,7 @@ trait GpuArrayOperations extends ScalanStaged {
     val segments = NestedArraySegments(x)
     val narr = ExpNestedArray(parr, segments)
     //val sumL = SumLiftedPA(narr, scalan.common.Monoid.monoid)
-    val sumL = sumLifted(narr)
+    val sumL : SumLiftedPA[Float] = sumLifted(narr)
 
     val lam1 = Lambda(null, y, sumL)
     val lam = Lambda(null, x, lam1)
@@ -193,10 +200,12 @@ object GpuGenTest {
   import oGpu._
 
   def main(args: Array[String]): Unit = {
-    val f: (Array[Int]) => Int = compile(mkLambda(simpleSum))
+//    val f: (Array[Int]) => Int = compile(mkLambda(svmv))
+    //val f: (PArray[PArray[(Int,Float)]], PArray[Float]) => PArray[Float] = (x, y) => compile(svmv(x)(y))
+    val f = compile1(svmv)
     val arr = (10 to 16).toArray
-    val res = f(arr)
-    System.out.println(res)
+//    val res = f(arr)
+//    System.out.println(res)
   }
 
   def generateFunSignature(sx: Sym[_], eRes: Elem[_])(implicit stream: PrintWriter): Unit = {
@@ -233,8 +242,37 @@ object GpuGenTest {
     */
   }
 
-  def compile[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): A => B = {
+  def emitNode(rhs: Def[_])(implicit stream: PrintWriter) = {
+    rhs match {
+      case (lam: Lambda[_, _]) =>
+	stream.print(lam)
+    }
+  }
+	
 
+  def compile1[A, B](lam: Lambda[A, B]) = {
+    val bytesStream = new ByteArrayOutputStream
+    val stream = new PrintWriter(bytesStream, true) {
+      override def println(s: String) = {
+        //System.out.println(s)
+        super.println(s)
+        System.out.println()
+      }
+
+      override def print(s: String) = {
+        System.out.print(s)
+        super.print(s)
+      }
+    }
+
+    emitNode(lam)(stream)
+
+    stream.flush
+    val programText = new String(bytesStream.toByteArray)
+    System.out.println(programText)
+  }
+
+  def compile[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): A => B = {
     val bytesStream = new ByteArrayOutputStream
     val stream = new PrintWriter(bytesStream, true) {
       override def println(s: String) = {

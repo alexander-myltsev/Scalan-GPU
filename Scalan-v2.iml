@@ -5,7 +5,6 @@
       <configuration>
         <option name="compilerLibraryLevel" value="Global" />
         <option name="compilerLibraryName" value="scala-virtualized" />
-        <option name="compilerOptions" value="-Xlog-implicits -Yvirtualize -Xexperimental" />
         <option name="explainTypeErrors" value="true" />
         <option name="vmOptions" value="-Xss1m" />
       </configuration>
