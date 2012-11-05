@@ -1,3 +1,5 @@
+lib/
+.ensime_lucene
 .cache
 .target
 .classpath
@@ -16,3 +18,4 @@ out/
 *.sbt~
 *.properties~
 *.scala~
+*.o

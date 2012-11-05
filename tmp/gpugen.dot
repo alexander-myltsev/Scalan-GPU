@@ -1,0 +1,83 @@
+digraph G {
+"Sym(27)" [
+label="Sym(27) \n First(var_Sym(26): Tuple2[PArray[Tuple2[Int, Float]], PArray[Float]])"
+shape=box
+]
+"var_Sym(26): Tuple2[PArray[Tuple2[Int, Float]], PArray[Float]]" -> "Sym(27)"
+"Sym(29)" [
+label="Sym(29) \n FirstPA(Sym(27))"
+shape=box
+color=blue
+]
+"Sym(27)" -> "Sym(29)"
+"Sym(32)" [
+label="Sym(32) \n LengthPA(Sym(29))"
+shape=box
+]
+"Sym(29)" -> "Sym(32)"
+"Sym(28)" [
+label="Sym(28) \n Second(var_Sym(26): Tuple2[PArray[Tuple2[Int, Float]], PArray[Float]])"
+shape=box
+]
+"var_Sym(26): Tuple2[PArray[Tuple2[Int, Float]], PArray[Float]]" -> "Sym(28)"
+"Sym(35)" [
+label="Sym(35) \n IndexPA(Sym(29),var_Sym(33): Int)"
+shape=box
+]
+"Sym(29)" -> "Sym(35)"
+"var_Sym(33): Int" -> "Sym(35)"
+"Sym(38)" [
+label="Sym(38) \n IndexPA(Sym(28),Sym(35))"
+shape=box
+]
+"Sym(28)" -> "Sym(38)"
+"Sym(35)" -> "Sym(38)"
+"Sym(30)" [
+label="Sym(30) \n SecondPA(Sym(27))"
+shape=box
+color=blue
+]
+"Sym(27)" -> "Sym(30)"
+"Sym(36)" [
+label="Sym(36) \n IndexPA(Sym(30),var_Sym(33): Int)"
+shape=box
+]
+"Sym(30)" -> "Sym(36)"
+"var_Sym(33): Int" -> "Sym(36)"
+"Sym(39)" [
+label="Sym(39) \n NumericTimes(Sym(38), Sym(36))"
+shape=box
+]
+"Sym(38)" -> "Sym(39)"
+"Sym(36)" -> "Sym(39)"
+"Sym(34)" [
+label="Sym(34) \n Lambda(var_Sym(33): Int,Sym(39))"
+shape=box
+color=red
+]
+"var_Sym(33): Int" -> "Sym(34)"
+"Sym(39)" -> "Sym(34)"
+"Sym(40)" [
+label="Sym(40) \n ArrayTabulate(Sym(32),Sym(34))"
+shape=box
+color=green
+]
+"Sym(32)" -> "Sym(40)"
+"Sym(34)" -> "Sym(40)"
+"Sym(41)" [
+label="Sym(41) \n BaseArray(Sym(40))"
+shape=box
+color=blue
+]
+"Sym(40)" -> "Sym(41)"
+"Sym(42)" [
+label="Sym(42) \n SumPA(Sym(41),[Monoid: '+' | 0.0])"
+shape=box
+]
+"Sym(41)" -> "Sym(42)"
+"Sym(43)" [
+label="Sym(43) \n Result(Sym(42))"
+shape=box
+]
+"Sym(42)" -> "Sym(43)"
+}

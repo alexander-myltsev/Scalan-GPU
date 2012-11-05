@@ -1,0 +1,121 @@
+digraph G {
+"Sym(13)" [
+label="Sym(13) \n Const(0.0)"
+shape=box
+]
+"Sym(330)" [
+label="Sym(330) \n LengthPA(var_Sym(327): PArray[PArray[Tuple2[Int, Float]]])"
+shape=box
+]
+"var_Sym(327): PArray[PArray[Tuple2[Int, Float]]]" -> "Sym(330)"
+"Sym(332)" [
+label="Sym(332) \n ReplicatePA(Sym(330),var_Sym(326): PArray[Float])"
+shape=box
+color=blue
+]
+"Sym(330)" -> "Sym(332)"
+"var_Sym(326): PArray[Float]" -> "Sym(332)"
+"Sym(448)" [
+label="Sym(448) \n ExpandBy(Sym(332),var_Sym(327): PArray[PArray[Tuple2[Int, Float]]])"
+shape=box
+color=blue
+]
+"Sym(332)" -> "Sym(448)"
+"var_Sym(327): PArray[PArray[Tuple2[Int, Float]]]" -> "Sym(448)"
+"Sym(36)" [
+label="Sym(36) \n Const(0)"
+shape=box
+]
+"Sym(504)" [
+label="Sym(504) \n NestedArrayValues(var_Sym(327): PArray[PArray[Tuple2[Int, Float]]])"
+shape=box
+color=blue
+]
+"var_Sym(327): PArray[PArray[Tuple2[Int, Float]]]" -> "Sym(504)"
+"Sym(547)" [
+label="Sym(547) \n FirstPA(Sym(504))"
+shape=box
+color=blue
+]
+"Sym(504)" -> "Sym(547)"
+"Sym(548)" [
+label="Sym(548) \n LengthPA(Sym(547))"
+shape=box
+]
+"Sym(547)" -> "Sym(548)"
+"Sym(65)" [
+label="Sym(65) \n Const(1)"
+shape=box
+]
+"Sym(554)" [
+label="Sym(554) \n ReplicatePA(Sym(548),Sym(65))"
+shape=box
+color=blue
+]
+"Sym(548)" -> "Sym(554)"
+"Sym(65)" -> "Sym(554)"
+"Sym(557)" [
+label="Sym(557) \n ExpBinopArray(NumericPlus(Sym(36), Sym(36)),Sym(547),Sym(554))"
+shape=box
+color=blue
+]
+"Sym(36)" -> "Sym(557)"
+"Sym(36)" -> "Sym(557)"
+"Sym(547)" -> "Sym(557)"
+"Sym(554)" -> "Sym(557)"
+"Sym(558)" [
+label="Sym(558) \n IndexLiftedPA(Sym(448),Sym(557))"
+shape=box
+color=blue
+]
+"Sym(448)" -> "Sym(558)"
+"Sym(557)" -> "Sym(558)"
+"Sym(561)" [
+label="Sym(561) \n SecondPA(Sym(504))"
+shape=box
+color=blue
+]
+"Sym(504)" -> "Sym(561)"
+"Sym(564)" [
+label="Sym(564) \n ExpBinopArray(NumericTimes(Sym(13), Sym(13)),Sym(558),Sym(561))"
+shape=box
+color=blue
+]
+"Sym(13)" -> "Sym(564)"
+"Sym(13)" -> "Sym(564)"
+"Sym(558)" -> "Sym(564)"
+"Sym(561)" -> "Sym(564)"
+"Sym(565)" [
+label="Sym(565) \n NestedArraySegments(var_Sym(327): PArray[PArray[Tuple2[Int, Float]]])"
+shape=box
+color=blue
+]
+"var_Sym(327): PArray[PArray[Tuple2[Int, Float]]]" -> "Sym(565)"
+"Sym(566)" [
+label="Sym(566) \n NArray(Sym(564),Sym(565))"
+shape=box
+color=blue
+]
+"Sym(564)" -> "Sym(566)"
+"Sym(565)" -> "Sym(566)"
+"Sym(567)" [
+label="Sym(567) \n SumLiftedPA(Sym(566),[Monoid: '+' | 0.0])"
+shape=box
+color=blue
+]
+"Sym(566)" -> "Sym(567)"
+"Sym(329)" [
+label="Sym(329) \n Lambda(var_Sym(326): PArray[Float],Sym(567))"
+shape=box
+color=red
+]
+"var_Sym(326): PArray[Float]" -> "Sym(329)"
+"Sym(567)" -> "Sym(329)"
+"Sym(328)" [
+label="Sym(328) \n Lambda(var_Sym(327): PArray[PArray[Tuple2[Int, Float]]],Sym(329))"
+shape=box
+color=red
+]
+"var_Sym(327): PArray[PArray[Tuple2[Int, Float]]]" -> "Sym(328)"
+"Sym(329)" -> "Sym(328)"
+}

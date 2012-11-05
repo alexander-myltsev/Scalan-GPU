@@ -1,4 +1,4 @@
-package gpugen;
+package main.scala.gpugen;
 
 import com.googlecode.javacpp.*;
 import com.googlecode.javacpp.annotation.*;

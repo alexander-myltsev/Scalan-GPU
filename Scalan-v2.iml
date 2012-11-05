@@ -5,9 +5,9 @@
       <configuration>
         <option name="compilerLibraryLevel" value="Global" />
         <option name="compilerLibraryName" value="scala-virtualized" />
-        <option name="compilerOptions" value="-Xlog-implicits" />
+        <option name="compilerOptions" value="-Xlog-implicits -Yvirtualize -Xexperimental" />
         <option name="explainTypeErrors" value="true" />
-        <option name="fsc" value="true" />
+        <option name="vmOptions" value="-Xss1m" />
       </configuration>
     </facet>
   </component>
@@ -18,10 +18,10 @@
       <sourceFolder url="file://$MODULE_DIR$/samples/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/javacpp/src/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/javacpp/src/main/resources" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/tests/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/lib" />
       <excludeFolder url="file://$MODULE_DIR$/project" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/tests" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
@@ -43,7 +43,6 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="scala-virtualized" level="application" />
     <orderEntry type="library" name="scala-virtualized" level="application" />
   </component>
 </module>

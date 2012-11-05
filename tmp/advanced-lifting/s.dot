@@ -1,0 +1,38 @@
+digraph G {
+"Sym(5)" [
+label="Sym(5) \n First(var_Sym(1): Tuple2[Int, Float])"
+shape=box
+]
+"var_Sym(1): Tuple2[Int, Float]" -> "Sym(5)"
+"Sym(7)" [
+label="Sym(7) \n IndexPA(var_Sym(2): PArray[Float],Sym(5))"
+shape=box
+]
+"var_Sym(2): PArray[Float]" -> "Sym(7)"
+"Sym(5)" -> "Sym(7)"
+"Sym(6)" [
+label="Sym(6) \n Second(var_Sym(1): Tuple2[Int, Float])"
+shape=box
+]
+"var_Sym(1): Tuple2[Int, Float]" -> "Sym(6)"
+"Sym(8)" [
+label="Sym(8) \n NumericTimes(Sym(7), Sym(6))"
+shape=box
+]
+"Sym(7)" -> "Sym(8)"
+"Sym(6)" -> "Sym(8)"
+"Sym(4)" [
+label="Sym(4) \n Lambda(var_Sym(1): Tuple2[Int, Float],Sym(8))"
+shape=box
+color=red
+]
+"var_Sym(1): Tuple2[Int, Float]" -> "Sym(4)"
+"Sym(8)" -> "Sym(4)"
+"Sym(3)" [
+label="Sym(3) \n Lambda(var_Sym(2): PArray[Float],Sym(4))"
+shape=box
+color=red
+]
+"var_Sym(2): PArray[Float]" -> "Sym(3)"
+"Sym(4)" -> "Sym(3)"
+}

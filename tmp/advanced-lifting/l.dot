@@ -1,0 +1,77 @@
+digraph G {
+"Sym(13)" [
+label="Sym(13) \n Const(0.0)"
+shape=box
+]
+"Sym(36)" [
+label="Sym(36) \n Const(0)"
+shape=box
+]
+"Sym(58)" [
+label="Sym(58) \n FirstPA(var_Sym(9): PArray[Tuple2[Int, Float]])"
+shape=box
+color=blue
+]
+"var_Sym(9): PArray[Tuple2[Int, Float]]" -> "Sym(58)"
+"Sym(59)" [
+label="Sym(59) \n LengthPA(Sym(58))"
+shape=box
+]
+"Sym(58)" -> "Sym(59)"
+"Sym(65)" [
+label="Sym(65) \n Const(1)"
+shape=box
+]
+"Sym(66)" [
+label="Sym(66) \n ReplicatePA(Sym(59),Sym(65))"
+shape=box
+color=blue
+]
+"Sym(59)" -> "Sym(66)"
+"Sym(65)" -> "Sym(66)"
+"Sym(69)" [
+label="Sym(69) \n ExpBinopArray(NumericPlus(Sym(36), Sym(36)),Sym(58),Sym(66))"
+shape=box
+color=blue
+]
+"Sym(36)" -> "Sym(69)"
+"Sym(36)" -> "Sym(69)"
+"Sym(58)" -> "Sym(69)"
+"Sym(66)" -> "Sym(69)"
+"Sym(70)" [
+label="Sym(70) \n IndexLiftedPA(var_Sym(10): PArray[PArray[Float]],Sym(69))"
+shape=box
+color=blue
+]
+"var_Sym(10): PArray[PArray[Float]]" -> "Sym(70)"
+"Sym(69)" -> "Sym(70)"
+"Sym(73)" [
+label="Sym(73) \n SecondPA(var_Sym(9): PArray[Tuple2[Int, Float]])"
+shape=box
+color=blue
+]
+"var_Sym(9): PArray[Tuple2[Int, Float]]" -> "Sym(73)"
+"Sym(76)" [
+label="Sym(76) \n ExpBinopArray(NumericTimes(Sym(13), Sym(13)),Sym(70),Sym(73))"
+shape=box
+color=blue
+]
+"Sym(13)" -> "Sym(76)"
+"Sym(13)" -> "Sym(76)"
+"Sym(70)" -> "Sym(76)"
+"Sym(73)" -> "Sym(76)"
+"Sym(12)" [
+label="Sym(12) \n Lambda(var_Sym(9): PArray[Tuple2[Int, Float]],Sym(76))"
+shape=box
+color=red
+]
+"var_Sym(9): PArray[Tuple2[Int, Float]]" -> "Sym(12)"
+"Sym(76)" -> "Sym(12)"
+"Sym(11)" [
+label="Sym(11) \n Lambda(var_Sym(10): PArray[PArray[Float]],Sym(12))"
+shape=box
+color=red
+]
+"var_Sym(10): PArray[PArray[Float]]" -> "Sym(11)"
+"Sym(12)" -> "Sym(11)"
+}

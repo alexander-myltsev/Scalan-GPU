@@ -24,6 +24,8 @@ libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-compiler" % "2.10.0-virtualized-SNAPSHOT"
 )
 
+mainClass in (Compile, run) := Some("scala.virtualization.lms.GpuGenTest")
+
 //Our tests are not threadsafe so disabling parallel execution for now
 parallelExecution in Test := false
 

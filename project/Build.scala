@@ -27,5 +27,4 @@ object ScalanBuild extends Build {
       (unmanagedSourceDirectories in Test) <+= baseDirectory(_ / "tests/src")
     )
   )
-
 }

@@ -46,25 +46,22 @@ object FlatGraphGen {
 
   def svmv = {
     val x = fresh[PArray[PArray[Pair[Int, Float]]]]
-    val y = fresh[PArray[PArray[Float]]]
+    val y = fresh[PArray[Float]]
     val mRow = fresh[PArray[Float]]
 
     val narrVals = NestedArrayValues(x)
     val narrValsFst = FirstPA(narrVals)
-    val backPerm = BackPermute(mRow,
-                               ExpBinopArray(NumericPlus(Const(0), Const(0), null),
-                                             ReplicatePA(LengthPA(narrValsFst), Const(1)),
-                                             narrValsFst))
-    val parr = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), backPerm, SecondPA(narrVals))
+    val repl = ReplicatePA(LengthPA(narrValsFst), Const(1))
+    val expBinop = ExpBinopArray(NumericPlus(Const(0), Const(0), null), repl, narrValsFst)
+    val backPerm = BackPermute(mRow,expBinop)
+    val narrValsSnd = SecondPA(narrVals)
+    val parr = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), backPerm, narrValsSnd)
     val segments = NestedArraySegments(x)
     val narr = ExpNestedArray(parr, segments)
     //val sumL = SumLiftedPA(narr, scalan.common.Monoid.monoid)
     val sumL = sumLifted(narr)
-    val mapFun = Lambda(null, mRow, sumL)
 
-    val mapPA = MapPA(y, mapFun)
-
-    val lam1 = Lambda(null, y, mapPA)
+    val lam1 = Lambda(null, y, sumL)
     val lam = Lambda(null, x, lam1)
     lam
   }

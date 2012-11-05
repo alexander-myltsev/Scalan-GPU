@@ -1,3 +1,5 @@
+// NOTE: Every operation of GpuArrayOperations is coded as DSL
+
 package scala.virtualization.lms
 
 import internal._
@@ -6,6 +8,8 @@ import scalan.samples.DslSamples
 import scalan.dsl.ArraysBase
 import java.io.{FileWriter, ByteArrayOutputStream, PrintWriter}
 import scalan.dsl._
+import scalan.common.Monoid
+import main.scala.gpugen.ThrustLib
 
 /*
 trait GpuStagedBase extends DslSamples {
@@ -237,6 +241,34 @@ trait GpuArrayOperations extends ScalanStaged {
     System.out.println("===== Error stream: ")
     Stream.continually(proc.getErrorStream.read(buffer)).takeWhile(-1 !=).foreach(len => System.out.print(new String(buffer, 0, len, "UTF-8")))
   }
+
+
+  def arraySum[T](s: Sym[Array[T]])(implicit m: Monoid[T]) = ArraySum(s, m)
+
+  def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
+
+  // TODO: Should be DSL instead of direct graph nodes generation.
+  def svmv = {
+    val x = fresh[PArray[PArray[Pair[Int, Float]]]]
+    val y = fresh[PArray[Float]]
+    val mRow = fresh[PArray[Float]]
+
+    val narrVals = NestedArrayValues(x)
+    val narrValsFst = FirstPA(narrVals)
+    val repl = ReplicatePA(LengthPA(narrValsFst), Const(1))
+    val expBinop = ExpBinopArray(NumericPlus(Const(0), Const(0), null), repl, narrValsFst)
+    val backPerm = BackPermute(mRow,expBinop)
+    val narrValsSnd = SecondPA(narrVals)
+    val parr = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), backPerm, narrValsSnd)
+    val segments = NestedArraySegments(x)
+    val narr = ExpNestedArray(parr, segments)
+    //val sumL = SumLiftedPA(narr, scalan.common.Monoid.monoid)
+    val sumL = sumLifted(narr)
+
+    val lam1 = Lambda(null, y, sumL)
+    val lam = Lambda(null, x, lam1)
+    lam
+  }
 }
 
 object GpuGenGraphTest {
@@ -462,13 +494,13 @@ device_vector<int>* test(device_vector<int>* x) {
     runProcess("/usr/lib/jvm/java-oracle-jdk1.7.0_01/bin/java -Dfile.encoding=UTF-8 -classpath /usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/plugin.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/deploy.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/rt.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/jce.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/javaws.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/charsets.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/alt-rt.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/jsse.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/management-agent.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/resources.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/dnsns.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/localedata.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunec.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunpkcs11.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/zipfs.jar:/usr/lib/jvm/java-oracle-jdk1.7.0_01/jre/lib/ext/sunjce_provider.jar:/host/Keldysh/prj/Scalan-v2/out/production/Scalan-v2:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/jline.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-compiler.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-dbc.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-library.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-partest.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scala-swing.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scalacheck.jar:/host/Keldysh/prj/scala-virtualized-pack/pack/lib/scalap.jar:/host/Keldysh/prj/Scalan-v2/lib/junit-4.10.jar:/host/Keldysh/prj/Scalan-v2/lib/maven-plugin-api-2.0.10.jar:/home/kate/idea-IC-117.105/lib/idea_rt.jar com.googlecode.javacpp.Builder gpugen.ThrustLib -properties linux-x86_64-cuda")
 
     // How to use ThrustLib.java
-    //val vp_in = new gpugen.ThrustLib.DeviceVectorPointer(Array[Int](1, 2, 3, 4, 5))
-    val vp_in = new gpugen.ThrustLib.DeviceVectorPointer
+    //val vp_in = new ThrustLib.DeviceVectorPointer(Array[Int](1, 2, 3, 4, 5))
+    val vp_in = new ThrustLib.DeviceVectorPointer
     for (i <- 0 to 5) {
       System.out.print(vp_in.get(i) + " ")
     }
     (0 to 128).foreach(x => vp_in push_back x)
-    val val_out = gpugen.ThrustLib.test(vp_in)
+    val val_out = ThrustLib.test(vp_in)
     /*
         val vp_out = gpugen.ThrustLib.test(vp_in)
         for (i <- 0 to 127) {
@@ -491,9 +523,9 @@ device_vector<int>* test(device_vector<int>* x) {
           */
           !!!("Unexpected type")
         case (x: Array[Int]) =>
-          val vp_in = new gpugen.ThrustLib.DeviceVectorPointer()
+          val vp_in = new ThrustLib.DeviceVectorPointer()
           (0 to 128).foreach(x => vp_in push_back x) // TODO: replace (0 to 128) with x.
-          val out = gpugen.ThrustLib.test(vp_in)
+          val out = ThrustLib.test(vp_in)
           System.out.println(out)
           !!!("not implemented") // TODO: return out
         case _ =>
