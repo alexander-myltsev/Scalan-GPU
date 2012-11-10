@@ -172,23 +172,29 @@ object GpuGenTest {
       override def println(s: String) = {
         //System.out.println(s)
         super.println(s)
-        System.out.println()
+        //System.out.println()
       }
 
       override def print(s: String) = {
-        System.out.print(s)
+        //System.out.print(s)
         super.print(s)
       }
     }
 
-    //emitNode(null, lam)(stream)
-    val k = lam.x.Elem.manifest.toString
-    stream.println(lam.toString)
+    val tp = lam.y.Elem.manifest.toString match {
+      case "scalan.dsl.ArraysBase$PArray[Float]" =>
+        "base_array<float>"
+    }
+
+    lam.x.Elem.manifest.toString match {
+      case "scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]], scalan.dsl.ArraysBase$PArray[Float]]" =>
+        stream.println(tp + " fun(const pair<nested_array<float>, base_array<float> > " + quote(lam.x) + ") {")
+    }
     emitBlock(lam.y)(stream)
     stream.println("return " + quote(lam.y) + ";")
+    stream.println("}")
 
     stream.flush
-    System.out.println("-----")
     val programText = new String(bytesStream.toByteArray)
     System.out.println(programText)
   }
