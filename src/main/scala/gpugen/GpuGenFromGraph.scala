@@ -19,7 +19,7 @@ trait GpuArrayOperations extends ScalanStaged {
   def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
 
   def smvm = {
-    val input = fresh[Pair[ PArray[PArray[Pair[Int, Float]]], PArray[Float] ]]
+    val input = fresh[Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]]]
 
     val m = First(input)
     val v = Second(input)
@@ -63,77 +63,30 @@ trait GpuGenImproved extends GenericCodegen {
   override def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
     rhs match {
       case (c: Const[_]) =>
-
+        stream.println(quote(s) + " = const(" + c.x + ")")
+      case (fst: First[_, _]) =>
+        stream.println(quote(s) + " = first(" + quote(fst.pair) + ")")
+      case (snd: Second[_, _]) =>
+        stream.println(quote(s) + " = second(" + quote(snd.pair) + ")")
       case (lam: Lambda[_, _]) =>
-        find(lam.y) match {
-          case Some(y) =>
-            stream.println("header for " + lam.x.toString)
-            emitNode(y.sym, y.rhs)
-          case None => !!!("Error")
-        }
+        stream.println("header for " + lam.x.toString)
       case (sl: SumLiftedPA[_]) =>
-        find(sl.source) match {
-          case Some(x) =>
-            stream.println(quote(s) + " = sum_lifted(" + quote(sl.source) + ")")
-            emitNode(x.sym, x.rhs)
-          case None => !!!("Error")
-        }
+        stream.println(quote(s) + " = sum_lifted(" + quote(sl.source) + ")")
       case (na: ExpNestedArray[_]) =>
-        (find(na.arr), find(na.segments)) match {
-          case (Some(arr), Some(segs)) =>
-            stream.println(quote(s) + " = nested_array(" + quote(na.arr) + ", " + quote(na.segments) + ")")
-            emitNode(arr.sym, arr.rhs)
-            emitNode(segs.sym, segs.rhs)
-          case _ => !!!("Error")
-        }
-      case (ba: ExpBinopArray[_]) => {
-        (find(ba.lhs), find(ba.rhs)) match {
-          case (Some(lhs), Some(rhs)) =>
-            stream.println(quote(s) + " = binop_array(" + ba.op + ", " + quote(ba.lhs) + ", " + quote(ba.rhs) + ")")
-            emitNode(lhs.sym, lhs.rhs)
-            emitNode(rhs.sym, rhs.rhs)
-          case _ => !!!("Error")
-        }
-      }
-      case (nav: NestedArrayValues[_]) => {
-        find(nav.nested) match {
-          case Some(x) => !!!("Unimplemented case 1")
-          case None =>
-            stream.println(quote(s) + " = nested_arr_vals(" + quote(nav.nested) + ")")
-        }
-      }
-      case (nas: NestedArraySegments[_]) => {
-        find(nas.nested) match {
-          case Some(x) =>
-            !!!("Unimplemented case")
-          case None =>
-            stream.println(quote(s) + " = nested_arr_segs(" + quote(nas.nested) + ")")
-        }
-      }
-      case (bp: BackPermute[_]) => {
-        (find(bp.x), find(bp.idxs)) match {
-          case (None, Some(x)) =>
-            stream.println(quote(s) + " = back_permute(" + quote(bp.x) + ", " + quote(bp.idxs) + ")")
-            emitNode(x.sym, x.rhs)
-          case _ => !!!("Unimplemented case")
-        }
-      }
-      case (fpa: FirstPA[_, _]) => {
-        find(fpa.source) match {
-          case Some(x) =>
-            stream.println(quote(s) + " = first_pa(" + quote(fpa.source) + ")")
-            emitNode(x.sym, x.rhs)
-          case None => !!!("Unimplemented case 2")
-        }
-      }
-      case (spa: SecondPA[_, _]) => {
-        find(spa.source) match {
-          case Some(x) =>
-            stream.println(quote(s) + " = second_pa(" + quote(spa.source) + ")")
-            emitNode(x.sym, x.rhs)
-          case None => !!!("Unimplemented case 2")
-        }
-      }
+        stream.println(quote(s) + " = nested_array(" + quote(na.arr) + ", " + quote(na.segments) + ")")
+      case (ba: ExpBinopArray[_]) =>
+        stream.println(quote(s) + " = binop_array(" + ba.op + ", " + quote(ba.lhs) + ", " + quote(ba.rhs) + ")")
+      case (nav: NestedArrayValues[_]) =>
+        stream.println(quote(s) + " = nested_arr_vals(" + quote(nav.nested) + ")")
+      case (nas: NestedArraySegments[_]) =>
+        stream.println(quote(s) + " = nested_arr_segs(" + quote(nas.nested) + ")")
+      case (bp: BackPermute[_]) =>
+        stream.println(quote(s) + " = back_permute(" + quote(bp.x) + ", " + quote(bp.idxs) + ")")
+      case (fpa: FirstPA[_, _]) =>
+        stream.println(quote(s) + " = first_pa(" + quote(fpa.source) + ")")
+      case (spa: SecondPA[_, _]) =>
+        stream.println(quote(s) + " = second_pa(" + quote(spa.source) + ")")
+      case _ => super.emitNode(s, rhs)
     }
   }
 
@@ -221,6 +174,7 @@ object GpuGenTest {
     }
 
     //emitNode(null, lam)(stream)
+    System.out.println(lam.toString)
     emitBlock(lam.y)(stream)
 
     stream.flush
