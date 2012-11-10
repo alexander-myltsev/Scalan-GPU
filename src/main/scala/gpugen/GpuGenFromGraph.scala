@@ -49,43 +49,73 @@ trait GpuGenImproved extends GenericCodegen {
     case "java.lang.String" => "char *"
     case "Array[Float]" => "device_vector<float>*"
     case "Array[Int]" => "device_vector<int>*"
-    case "scalan.dsl.ArraysBase$PArray[Float]" => "float*"
+    case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" => "nested_array<pair<int, float> >"
+    case "scalan.dsl.ArraysBase$PArray[Float]" => "base_array<float>" // TODO: Fix Thrust-library then this line. Should be 'parray<float>*'
     case _ => throw new GenerationFailedException("CGen: remap(m) : Unknown data type (%s)".format(m.toString))
-  }
-
-  def find[T](x: Exp[T]) = {
-    x.isVar match {
-      case false => findDefinition(x.asInstanceOf[Sym[T]])
-      case true => None // TODO: Should be not None
-    }
   }
 
   override def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
     rhs match {
       case (c: Const[_]) =>
-        stream.println(quote(s) + " = const(" + c.x + ")")
+      //stream.println(quote(s) + " = const(" + c.x + ")")
+
       case (fst: First[_, _]) =>
-        stream.println(quote(s) + " = first(" + quote(fst.pair) + ")")
+        val tp = remap(fst.pair.Elem.manifest.typeArguments(0))
+        stream.println(tp + " " + quote(s) + " = thrust::get<0>(" + quote(fst.pair) + ");")
+
       case (snd: Second[_, _]) =>
-        stream.println(quote(s) + " = second(" + quote(snd.pair) + ")")
-      case (lam: Lambda[_, _]) =>
-        stream.println("header for " + lam.x.toString)
+        val tp = remap(snd.pair.Elem.manifest.typeArguments(1))
+        stream.println(tp + " " + quote(s) + " = thrust::get<1>(" + quote(snd.pair) + ");")
+
       case (sl: SumLiftedPA[_]) =>
-        stream.println(quote(s) + " = sum_lifted(" + quote(sl.source) + ")")
+        val tp = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(tp + " " + quote(s) + " = sum_lifted(" + quote(sl.source) + ");")
+
       case (na: ExpNestedArray[_]) =>
-        stream.println(quote(s) + " = nested_array(" + quote(na.arr) + ", " + quote(na.segments) + ")")
+        val tp = "nested_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(tp + " " + quote(s) + " = " + tp + "(&" + quote(na.arr) + ", " + quote(na.segments) + ");")
+
       case (ba: ExpBinopArray[_]) =>
-        stream.println(quote(s) + " = binop_array(" + ba.op + ", " + quote(ba.lhs) + ", " + quote(ba.rhs) + ")")
+        // TODO: analyse ba.op
+        val tp = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(tp + " " + quote(s) + " = binop_array(" + quote(ba.lhs) + ", " + quote(ba.rhs) + ");")
+
       case (nav: NestedArrayValues[_]) =>
-        stream.println(quote(s) + " = nested_arr_vals(" + quote(nav.nested) + ")")
+        val tp = nav.nested.Elem.manifest.toString match {
+          case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" =>
+            "base_array<float>"
+          case _ => !!!("Unsupported")
+        }
+        stream.println(tp + " " + quote(s) + " = " + quote(nav.nested) + ".values();")
+
       case (nas: NestedArraySegments[_]) =>
-        stream.println(quote(s) + " = nested_arr_segs(" + quote(nas.nested) + ")")
+        val tp = nas.nested.Elem.manifest.toString match {
+          case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" =>
+            "base_array<int>"
+          case _ => !!!("Unsupported")
+        }
+        stream.println(tp + " " + quote(s) + " = " + quote(nas.nested) + ".segments();")
+
       case (bp: BackPermute[_]) =>
-        stream.println(quote(s) + " = back_permute(" + quote(bp.x) + ", " + quote(bp.idxs) + ")")
+        val tp = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(tp + " " + quote(s) + " = " + quote(bp.x) + ".back_permute(" + quote(bp.idxs) + ");")
+
       case (fpa: FirstPA[_, _]) =>
-        stream.println(quote(s) + " = first_pa(" + quote(fpa.source) + ")")
+        val tp = fpa.source.Elem.manifest.toString match {
+          case "scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]" =>
+            "base_array<int>"
+          case _ => !!!("Unsupported")
+        }
+        stream.println(tp + " " + quote(s) + " = " + quote(fpa.source) + ".first();")
+
       case (spa: SecondPA[_, _]) =>
-        stream.println(quote(s) + " = second_pa(" + quote(spa.source) + ")")
+        val tp = spa.source.Elem.manifest.toString match {
+          case "scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]" =>
+            "base_array<float>"
+          case _ => !!!("Unsupported")
+        }
+        stream.println(tp + " " + quote(s) + " = " + quote(spa.source) + ".second();")
+
       case _ => super.emitNode(s, rhs)
     }
   }
@@ -114,8 +144,6 @@ object GpuGenTest {
   import oGpu._
 
   def main(args: Array[String]): Unit = {
-    //    val f: (Array[Int]) => Int = compile(mkLambda(smvm))
-    //val f: (PArray[PArray[(Int,Float)]], PArray[Float]) => PArray[Float] = (x, y) => compile(smvm(x)(y))
     val f = compile1(smvm)
     val arr = (10 to 16).toArray
     //    val res = f(arr)
@@ -134,26 +162,6 @@ object GpuGenTest {
       case "int[]" => stream.println("test(" + remap(sx.Elem.manifest) + " " + quote(sx) + ") {")
       case _ => !!!("Unexpected type")
     }
-
-    /*
-    // NOTE: Does not work because of erasure
-    sx.Elem match { 
-      case (p: PairElem[_, _]) =>
-        !!!("TODO: implement Pair")
-      //generateFunSignature(p.ea, eRes)
-      //generateFunSignature(p.eb, eRes)
-      case (f: Element[Float]) =>
-        !!!("TODO: implement Float")
-      case (f: Element[Int]) => stream.println("test(int " + quote(sx) + ") {")
-      //case (i: Elem[Int]) => stream.println("test(int " + quote(sx) + ") {")
-      case (arr: Elem[Array[_]]) =>
-        val xq = quote(sx)
-        stream.println("""extern "C" """ + remap(eRes.manifest) + " fun(" + remap(sx.Elem.manifest) + " " + xq + "_tmp, int size, int& out_size) {")
-        stream.println("host_vector<int> " + xq + "(" + xq + "_tmp, " + xq + "_tmp + size);")
-      case t =>
-        !!!("Unexpected type " + t)
-    }
-    */
   }
 
   def compile1[A, B](lam: Lambda[A, B]) = {
@@ -174,10 +182,13 @@ object GpuGenTest {
     }
 
     //emitNode(null, lam)(stream)
-    System.out.println(lam.toString)
+    val k = lam.x.Elem.manifest.toString
+    stream.println(lam.toString)
     emitBlock(lam.y)(stream)
+    stream.println("return " + quote(lam.y) + ";")
 
     stream.flush
+    System.out.println("-----")
     val programText = new String(bytesStream.toByteArray)
     System.out.println(programText)
   }
