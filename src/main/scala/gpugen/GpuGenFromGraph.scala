@@ -180,13 +180,13 @@ trait GpuArrayOperations extends ScalanStaged {
     val narrValsFst = FirstPA(narrVals)
     val repl = ReplicatePA(LengthPA(narrValsFst), Const(1))
     val expBinop = ExpBinopArray(NumericPlus(Const(0), Const(0), null), repl, narrValsFst)
-    val backPerm = BackPermute(mRow,expBinop)
+    val backPerm = BackPermute(mRow, expBinop)
     val narrValsSnd = SecondPA(narrVals)
     val parr = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), backPerm, narrValsSnd)
     val segments = NestedArraySegments(x)
     val narr = ExpNestedArray(parr, segments)
     //val sumL = SumLiftedPA(narr, scalan.common.Monoid.monoid)
-    val sumL : SumLiftedPA[Float] = sumLifted(narr)
+    val sumL: SumLiftedPA[Float] = sumLifted(narr)
 
     val lam1 = Lambda(null, y, sumL)
     val lam = Lambda(null, x, lam1)
@@ -200,12 +200,12 @@ object GpuGenTest {
   import oGpu._
 
   def main(args: Array[String]): Unit = {
-//    val f: (Array[Int]) => Int = compile(mkLambda(svmv))
+    //    val f: (Array[Int]) => Int = compile(mkLambda(svmv))
     //val f: (PArray[PArray[(Int,Float)]], PArray[Float]) => PArray[Float] = (x, y) => compile(svmv(x)(y))
     val f = compile1(svmv)
     val arr = (10 to 16).toArray
-//    val res = f(arr)
-//    System.out.println(res)
+    //    val res = f(arr)
+    //    System.out.println(res)
   }
 
   def generateFunSignature(sx: Sym[_], eRes: Elem[_])(implicit stream: PrintWriter): Unit = {
@@ -242,15 +242,68 @@ object GpuGenTest {
     */
   }
 
-  def emitNode(rhs: Def[_])(implicit stream: PrintWriter) = {
-    rhs match {
-      case (lam: Lambda[_, _]) =>
-	stream.print(lam)
+  def find[T](x: Exp[T]) = {
+    x.isVar match {
+      case false => findDefinition(x.asInstanceOf[Sym[T]])
+      case true => None // TODO: Should be not None
     }
   }
-	
+
+  def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
+    rhs match {
+      case (lam: Lambda[_, _]) =>
+        find(lam.y) match {
+          case Some(y) =>
+            stream.println("header for " + lam.x.toString)
+            emitNode(y.sym, y.rhs)
+          case None => !!!("Error")
+        }
+      case (sl: SumLiftedPA[_]) =>
+        find(sl.source) match {
+          case Some(x) =>
+            stream.println(quote(s) + " = sum_lifted(" + quote(sl.source) + ")")
+            emitNode(x.sym, x.rhs)
+          case None => !!!("Error")
+        }
+      case (na: ExpNestedArray[_]) =>
+        (find(na.arr), find(na.segments)) match {
+          case (Some(arr), Some(segs)) =>
+            stream.println(quote(s) + " = nested_array(" + quote(na.arr) + ", " + quote(na.segments) + ")")
+            emitNode(arr.sym, arr.rhs)
+            emitNode(segs.sym, segs.rhs)
+          case _ => !!!("Error")
+        }
+      case (ba: ExpBinopArray[_]) => {
+        (find(ba.lhs), find(ba.rhs)) match {
+          case (Some(lhs), Some(rhs)) =>
+            stream.println(quote(s) + " = binop_array(" + ba.op + ", " + quote(ba.lhs) + ", " + quote(ba.rhs) + ")")
+            emitNode(lhs.sym, lhs.rhs)
+            emitNode(rhs.sym, rhs.rhs)
+          case _ => !!!("Error")
+        }
+      }
+      case (nas: NestedArraySegments[_]) => {
+        find(nas.nested) match {
+          case Some(x) =>
+            !!!("Unimplemented case")
+          case None =>
+            stream.print(quote(s) + " = nested_arr_segs(" + quote(nas.nested) + ")")
+        }
+      }
+      case (bp: BackPermute[_]) => {
+        (find(bp.x), find(bp.idxs)) match {
+          case (None, Some(x)) =>
+            stream.print(quote(s) + " = back_permute(" + quote(bp.x) + ", " + quote(bp.idxs) + ")")
+            emitNode(x.sym, x.rhs)
+          case _ => !!!("Unimplemented case")
+        }
+      }
+    }
+  }
 
   def compile1[A, B](lam: Lambda[A, B]) = {
+    globDefsArr = globalDefs.toArray
+
     val bytesStream = new ByteArrayOutputStream
     val stream = new PrintWriter(bytesStream, true) {
       override def println(s: String) = {
@@ -265,7 +318,7 @@ object GpuGenTest {
       }
     }
 
-    emitNode(lam)(stream)
+    emitNode(null, lam)(stream)
 
     stream.flush
     val programText = new String(bytesStream.toByteArray)
@@ -354,7 +407,7 @@ device_vector<int>* test(device_vector<int>* x) {
     fw.flush
     fw.close
 
-   val r: A => B = (x: A) => {
+    val r: A => B = (x: A) => {
       x match {
         case (x: Float) =>
           !!!("not implemented")

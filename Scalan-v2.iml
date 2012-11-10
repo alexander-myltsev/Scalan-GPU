@@ -3,9 +3,10 @@
   <component name="FacetManager">
     <facet type="scala" name="Scala">
       <configuration>
-        <option name="compilerLibraryLevel" value="Global" />
+        <option name="compilerLibraryLevel" value="Project" />
         <option name="compilerLibraryName" value="scala-virtualized" />
         <option name="explainTypeErrors" value="true" />
+        <option name="fsc" value="true" />
         <option name="vmOptions" value="-Xss1m" />
       </configuration>
     </facet>
@@ -42,7 +43,7 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="scala-virtualized" level="application" />
+    <orderEntry type="library" name="scala-virtualized" level="project" />
   </component>
 </module>
 
