@@ -1,5 +1,4 @@
-// NOTE: SVMV operation is encoded in form of FlatGraph nodes
-
+// NOTE: This is implementation when SVMV operation is encoded in form of FlatGraph nodes
 package scala.virtualization.lms
 
 import internal._
@@ -11,127 +10,34 @@ import scalan.dsl._
 import scalan.common.Monoid
 import main.scala.gpugen.ThrustLib
 
-class GenerationFailedException(msg: String) extends Exception(msg) {
+class GenerationFailedException(msg: String) extends Exception(msg)
+
+trait GpuArrayOperations extends ScalanStaged {
+  // TODO: Should be DSL instead of direct graph nodes generation.
+  def arraySum[T](s: Sym[Array[T]])(implicit m: Monoid[T]) = ArraySum(s, m)
+
+  def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
+
+  def smvm = {
+    val input = fresh[Pair[ PArray[PArray[Pair[Int, Float]]], PArray[Float] ]]
+
+    val m = First(input)
+    val v = Second(input)
+
+    val naVals = NestedArrayValues(m)
+    val bp = BackPermute(v, FirstPA(naVals))
+    val ba = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), bp, SecondPA(naVals))
+    val res: SumLiftedPA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
+
+    val lam = Lambda(null, input, res)
+    lam
+  }
 }
 
-trait GpuGen extends GenericCodegen {
+trait GpuGenImproved extends GenericCodegen {
   self: ArraysBase with StagedImplementation =>
 
   var globDefsArr: Array[TP[_]] = null
-
-  def emitSource[A, B](f: Exp[A] => Exp[B], className: String, stream: PrintWriter)(implicit eA: Elem[A], eB: Elem[B]): Unit = {
-
-    //stream.println(globalDefs.mkString("globalDefs:[", ", ", "]"))
-
-    val x = fresh[A]
-    val y = f(x)
-
-    val sA = eA.manifest.toString
-    val sB = eB.manifest.toString
-
-    stream.println(globalDefs.mkString("globalDefs:[\n\t", ",\n\t", "\n]"))
-    stream.flush
-
-    stream.println("/*****************************************\n" +
-      "  Emitting Generated Code                  \n" +
-      "*******************************************/")
-    stream.println("class " + className + " extends ((" + sA + ")=>(" + sB + ")) {")
-    stream.println("def apply(" + quote(x) + ":" + sA + "): " + sB + " = {")
-
-    emitBlock(y)(stream)
-    stream.println(quote(getBlockResult(y)))
-
-    stream.println("}")
-    stream.println("}")
-    stream.println("/*****************************************\n" +
-      "  End of Generated Code                  \n" +
-      "*******************************************/")
-
-    stream.flush
-  }
-
-  override def emitNode(sym: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
-    rhs match {
-      case (esa: ExpStdArray[_]) =>
-        stream.println("// -----")
-        //stream.println(sym.Elem.toString)
-        //stream.println(esa.et.toString)
-        //stream.println(esa.arr.toString)
-        val arrSym = esa.arr.asInstanceOf[Sym[_]] // TODO: any better way?
-        stream.print("device_vector<" + remap(esa.manifest) + "> ")
-        stream.println(quote(sym) + " = " + quote(arrSym) + ";")
-      case (a: Const[_]) =>
-        stream.println("// -----")
-        def codegen[T](arr: Array[T], tp: String) = {
-          stream.println("host_vector<" + tp + "> " + quote(sym) + "(" + arr.length + ");")
-          for (i <- 0 until arr.length) {
-            stream.write(quote(sym) + "[" + i + "] = " + arr(i) + "f;\n")
-          }
-        }
-
-        // TODO: Fix it via Elements.
-        // ??: How x.isInstanceOf[Array[Int]] works in spite of type erasure?
-        a.matchArrayConst(a) {
-          codegen(_, "int")
-        } {
-          codegen(_, "float")
-        } {
-          codegen(_, "boolean")
-        } {
-          throw new GenerationFailedException("Don'n know how to generate " + a)
-        }
-      case eba@ExpBinopArray((np: NumericPlus[_]), s1, s2) =>
-        stream.println("// -----")
-        //stream.println(np)
-        //stream.println(s1)
-        //stream.println(s2)
-        val tp = remap(eba.elem.manifest)
-        val s1q = quote(s1)
-        val s2q = quote(s2)
-        val op = "thrust::plus<" + tp + ">()" // NOTE: because NumericPlus
-
-        stream.println("device_vector<" + tp + "> " + quote(sym) + "(size);") // TODO: what is size?
-        stream.print("thrust::transform(" + s1q + ".begin(), " + s1q + ".end(), ")
-        stream.println(s2q + ".begin(), " + quote(sym) + ".begin(), " + op + ");")
-      case (al: ArrayLength[_]) =>
-        stream.println("al")
-        throw new Exception("Not implemented")
-      case (aa: ArrayApply[_]) =>
-        stream.println("aa")
-        throw new Exception("Not implemented")
-      case (nt: NumericTimes[_]) =>
-        stream.println("nt")
-        throw new Exception("Not implemented")
-      case (as: ArraySum[_]) =>
-        //stream.println(as.m.opName)
-        //stream.println(as.m.zero.toString)
-
-        val typeS = as.x.Elem.manifest.toString match {
-          // TODO: how to analyse types instead of strings?
-          // TODO: Actually result type should be most appropriate of Array[T] and Zero type
-          case "Array[Float]" => "float"
-          case "Array[Int]" => "int"
-        }
-        stream.print(typeS + " ")
-
-        as.x.isVar match {
-          // TODO: Why 'if (as.x.isVar)' throws cast exception?
-          case true =>
-            stream.print(quote(sym) + " = ")
-            stream.print("thrust::reduce(" + quote(as.x) + "->begin(), " + quote(as.x) + "->end(), ")
-            stream.println(as.m.zero.toString + ", " + remapOp(as.m.opName) + "<" + typeS + ">());")
-          case false =>
-            !!!("Implement it")
-        }
-
-      //throw new Exception("Not implemented")
-      case (lam: Lambda[_, _]) =>
-        stream.println("lambda")
-        throw new Exception("Not implemented")
-      case _ => super.emitNode(sym, rhs)
-    }
-    //stream.flush
-  }
 
   def remap[A](m: Manifest[A]): String = m.toString match {
     case "Int" => "int"
@@ -145,6 +51,90 @@ trait GpuGen extends GenericCodegen {
     case "Array[Int]" => "device_vector<int>*"
     case "scalan.dsl.ArraysBase$PArray[Float]" => "float*"
     case _ => throw new GenerationFailedException("CGen: remap(m) : Unknown data type (%s)".format(m.toString))
+  }
+
+  def find[T](x: Exp[T]) = {
+    x.isVar match {
+      case false => findDefinition(x.asInstanceOf[Sym[T]])
+      case true => None // TODO: Should be not None
+    }
+  }
+
+  override def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
+    rhs match {
+      case (c: Const[_]) =>
+
+      case (lam: Lambda[_, _]) =>
+        find(lam.y) match {
+          case Some(y) =>
+            stream.println("header for " + lam.x.toString)
+            emitNode(y.sym, y.rhs)
+          case None => !!!("Error")
+        }
+      case (sl: SumLiftedPA[_]) =>
+        find(sl.source) match {
+          case Some(x) =>
+            stream.println(quote(s) + " = sum_lifted(" + quote(sl.source) + ")")
+            emitNode(x.sym, x.rhs)
+          case None => !!!("Error")
+        }
+      case (na: ExpNestedArray[_]) =>
+        (find(na.arr), find(na.segments)) match {
+          case (Some(arr), Some(segs)) =>
+            stream.println(quote(s) + " = nested_array(" + quote(na.arr) + ", " + quote(na.segments) + ")")
+            emitNode(arr.sym, arr.rhs)
+            emitNode(segs.sym, segs.rhs)
+          case _ => !!!("Error")
+        }
+      case (ba: ExpBinopArray[_]) => {
+        (find(ba.lhs), find(ba.rhs)) match {
+          case (Some(lhs), Some(rhs)) =>
+            stream.println(quote(s) + " = binop_array(" + ba.op + ", " + quote(ba.lhs) + ", " + quote(ba.rhs) + ")")
+            emitNode(lhs.sym, lhs.rhs)
+            emitNode(rhs.sym, rhs.rhs)
+          case _ => !!!("Error")
+        }
+      }
+      case (nav: NestedArrayValues[_]) => {
+        find(nav.nested) match {
+          case Some(x) => !!!("Unimplemented case 1")
+          case None =>
+            stream.println(quote(s) + " = nested_arr_vals(" + quote(nav.nested) + ")")
+        }
+      }
+      case (nas: NestedArraySegments[_]) => {
+        find(nas.nested) match {
+          case Some(x) =>
+            !!!("Unimplemented case")
+          case None =>
+            stream.println(quote(s) + " = nested_arr_segs(" + quote(nas.nested) + ")")
+        }
+      }
+      case (bp: BackPermute[_]) => {
+        (find(bp.x), find(bp.idxs)) match {
+          case (None, Some(x)) =>
+            stream.println(quote(s) + " = back_permute(" + quote(bp.x) + ", " + quote(bp.idxs) + ")")
+            emitNode(x.sym, x.rhs)
+          case _ => !!!("Unimplemented case")
+        }
+      }
+      case (fpa: FirstPA[_, _]) => {
+        find(fpa.source) match {
+          case Some(x) =>
+            stream.println(quote(s) + " = first_pa(" + quote(fpa.source) + ")")
+            emitNode(x.sym, x.rhs)
+          case None => !!!("Unimplemented case 2")
+        }
+      }
+      case (spa: SecondPA[_, _]) => {
+        find(spa.source) match {
+          case Some(x) =>
+            stream.println(quote(s) + " = second_pa(" + quote(spa.source) + ")")
+            emitNode(x.sym, x.rhs)
+          case None => !!!("Unimplemented case 2")
+        }
+      }
+    }
   }
 
   def remapOp(op: String) = op match {
@@ -165,29 +155,8 @@ trait GpuGen extends GenericCodegen {
   }
 }
 
-trait GpuArrayOperations extends ScalanStaged {
-  // TODO: Should be DSL instead of direct graph nodes generation.
-  def arraySum[T](s: Sym[Array[T]])(implicit m: Monoid[T]) = ArraySum(s, m)
-
-  def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
-
-  def smvm = {
-    val m = fresh[PArray[PArray[Pair[Int, Float]]]]
-    val v = fresh[PArray[Float]]
-
-    val naVals = NestedArrayValues(m)
-    val bp = BackPermute(v, FirstPA(naVals))
-    val ba = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), bp, SecondPA(naVals))
-    val res: SumLiftedPA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
-
-    val lam1 = Lambda(null, m, res)
-    val lam = Lambda(null, v, lam1)
-    lam
-  }
-}
-
 object GpuGenTest {
-  val oGpu = new GpuArrayOperations with GpuGen
+  val oGpu = new GpuArrayOperations with GpuGenImproved
 
   import oGpu._
 
@@ -234,65 +203,6 @@ object GpuGenTest {
     */
   }
 
-  def find[T](x: Exp[T]) = {
-    x.isVar match {
-      case false => findDefinition(x.asInstanceOf[Sym[T]])
-      case true => None // TODO: Should be not None
-    }
-  }
-
-  def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
-    rhs match {
-      case (lam: Lambda[_, _]) =>
-        find(lam.y) match {
-          case Some(y) =>
-            stream.println("header for " + lam.x.toString)
-            emitNode(y.sym, y.rhs)
-          case None => !!!("Error")
-        }
-      case (sl: SumLiftedPA[_]) =>
-        find(sl.source) match {
-          case Some(x) =>
-            stream.println(quote(s) + " = sum_lifted(" + quote(sl.source) + ")")
-            emitNode(x.sym, x.rhs)
-          case None => !!!("Error")
-        }
-      case (na: ExpNestedArray[_]) =>
-        (find(na.arr), find(na.segments)) match {
-          case (Some(arr), Some(segs)) =>
-            stream.println(quote(s) + " = nested_array(" + quote(na.arr) + ", " + quote(na.segments) + ")")
-            emitNode(arr.sym, arr.rhs)
-            emitNode(segs.sym, segs.rhs)
-          case _ => !!!("Error")
-        }
-      case (ba: ExpBinopArray[_]) => {
-        (find(ba.lhs), find(ba.rhs)) match {
-          case (Some(lhs), Some(rhs)) =>
-            stream.println(quote(s) + " = binop_array(" + ba.op + ", " + quote(ba.lhs) + ", " + quote(ba.rhs) + ")")
-            emitNode(lhs.sym, lhs.rhs)
-            emitNode(rhs.sym, rhs.rhs)
-          case _ => !!!("Error")
-        }
-      }
-      case (nas: NestedArraySegments[_]) => {
-        find(nas.nested) match {
-          case Some(x) =>
-            !!!("Unimplemented case")
-          case None =>
-            stream.print(quote(s) + " = nested_arr_segs(" + quote(nas.nested) + ")")
-        }
-      }
-      case (bp: BackPermute[_]) => {
-        (find(bp.x), find(bp.idxs)) match {
-          case (None, Some(x)) =>
-            stream.print(quote(s) + " = back_permute(" + quote(bp.x) + ", " + quote(bp.idxs) + ")")
-            emitNode(x.sym, x.rhs)
-          case _ => !!!("Unimplemented case")
-        }
-      }
-    }
-  }
-
   def compile1[A, B](lam: Lambda[A, B]) = {
     globDefsArr = globalDefs.toArray
 
@@ -310,7 +220,8 @@ object GpuGenTest {
       }
     }
 
-    emitNode(null, lam)(stream)
+    //emitNode(null, lam)(stream)
+    emitBlock(lam.y)(stream)
 
     stream.flush
     val programText = new String(bytesStream.toByteArray)
