@@ -171,25 +171,17 @@ trait GpuArrayOperations extends ScalanStaged {
 
   def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
 
-  def svmv = {
-    val x = fresh[PArray[PArray[Pair[Int, Float]]]]
-    val y = fresh[PArray[Float]]
-    val mRow = fresh[PArray[Float]]
+  def smvm = {
+    val m = fresh[PArray[PArray[Pair[Int, Float]]]]
+    val v = fresh[PArray[Float]]
 
-    val narrVals = NestedArrayValues(x)
-    val narrValsFst = FirstPA(narrVals)
-    val repl = ReplicatePA(LengthPA(narrValsFst), Const(1))
-    val expBinop = ExpBinopArray(NumericPlus(Const(0), Const(0), null), repl, narrValsFst)
-    val backPerm = BackPermute(mRow, expBinop)
-    val narrValsSnd = SecondPA(narrVals)
-    val parr = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), backPerm, narrValsSnd)
-    val segments = NestedArraySegments(x)
-    val narr = ExpNestedArray(parr, segments)
-    //val sumL = SumLiftedPA(narr, scalan.common.Monoid.monoid)
-    val sumL: SumLiftedPA[Float] = sumLifted(narr)
+    val naVals = NestedArrayValues(m)
+    val bp = BackPermute(v, FirstPA(naVals))
+    val ba = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), bp, SecondPA(naVals))
+    val res: SumLiftedPA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
 
-    val lam1 = Lambda(null, y, sumL)
-    val lam = Lambda(null, x, lam1)
+    val lam1 = Lambda(null, m, res)
+    val lam = Lambda(null, v, lam1)
     lam
   }
 }
@@ -200,9 +192,9 @@ object GpuGenTest {
   import oGpu._
 
   def main(args: Array[String]): Unit = {
-    //    val f: (Array[Int]) => Int = compile(mkLambda(svmv))
-    //val f: (PArray[PArray[(Int,Float)]], PArray[Float]) => PArray[Float] = (x, y) => compile(svmv(x)(y))
-    val f = compile1(svmv)
+    //    val f: (Array[Int]) => Int = compile(mkLambda(smvm))
+    //val f: (PArray[PArray[(Int,Float)]], PArray[Float]) => PArray[Float] = (x, y) => compile(smvm(x)(y))
+    val f = compile1(smvm)
     val arr = (10 to 16).toArray
     //    val res = f(arr)
     //    System.out.println(res)
