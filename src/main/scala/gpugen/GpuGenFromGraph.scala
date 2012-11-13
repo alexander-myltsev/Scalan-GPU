@@ -61,11 +61,11 @@ trait GpuGenImproved extends GenericCodegen {
 
       case (fst: First[_, _]) =>
         val tp = remap(fst.pair.Elem.manifest.typeArguments(0))
-        stream.println(tp + " " + quote(s) + " = thrust::get<0>(" + quote(fst.pair) + ");")
+        stream.println(tp + " " + quote(s) + " = " + quote(fst.pair) + ".fst();")
 
       case (snd: Second[_, _]) =>
         val tp = remap(snd.pair.Elem.manifest.typeArguments(1))
-        stream.println(tp + " " + quote(s) + " = thrust::get<1>(" + quote(snd.pair) + ");")
+        stream.println(tp + " " + quote(s) + " = " + quote(snd.pair) + ".snd();")
 
       case (sl: SumLiftedPA[_]) =>
         val tp = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
@@ -83,7 +83,7 @@ trait GpuGenImproved extends GenericCodegen {
       case (nav: NestedArrayValues[_]) =>
         val tp = nav.nested.Elem.manifest.toString match {
           case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" =>
-            "base_array<float>"
+            "pair_array<int, float>"
           case _ => !!!("Unsupported")
         }
         stream.println(tp + " " + quote(s) + " = " + quote(nav.nested) + ".values();")
@@ -181,6 +181,14 @@ object GpuGenTest {
       }
     }
 
+    val thrust_lib_code = io.Source.fromFile("src/scalan-thrust-lib.cpp")
+    stream.println("// ----------------------------------------")
+    stream.println("// ----- Scalan-Thrust CUDA/C library -----")
+    stream.println("// ----------------------------------------")
+    stream.println(thrust_lib_code.mkString)
+    thrust_lib_code.close
+    stream.println("// ----------------------------------------")
+
     val tp = lam.y.Elem.manifest.toString match {
       case "scalan.dsl.ArraysBase$PArray[Float]" =>
         "base_array<float>"
@@ -188,7 +196,7 @@ object GpuGenTest {
 
     lam.x.Elem.manifest.toString match {
       case "scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]], scalan.dsl.ArraysBase$PArray[Float]]" =>
-        stream.println(tp + " fun(const pair<nested_array<float>, base_array<float> > " + quote(lam.x) + ") {")
+        stream.println(tp + " fun(pair<nested_array<pair<int, float> >, base_array<float> > " + quote(lam.x) + ") {")
     }
     emitBlock(lam.y)(stream)
     stream.println("return " + quote(lam.y) + ";")
@@ -196,7 +204,12 @@ object GpuGenTest {
 
     stream.flush
     val programText = new String(bytesStream.toByteArray)
-    System.out.println(programText)
+    //System.out.println(programText)
+
+    val fw = new FileWriter("tmp/fun.cpp")
+    fw.write(programText)
+    fw.flush
+    fw.close
   }
 
   def compile[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): A => B = {
