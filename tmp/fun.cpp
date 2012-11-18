@@ -311,11 +311,9 @@ using scalan_thrust::sum_lifted;
 
 
 // ----------------------------------------
-void fun1(const base_array<float>& ba, host_vector<int>* hv) {
-  // std::cout << "DEBUG -- input array: ";
-  for (int i = 0; i < ba.length(); i++) {
-    hv->push_back(ba.data()[i]);
-  }
+void fun1(const nested_array<pair<int, float> >& na) {
+  std::cout << "DEBUG -- input array: ";
+  std::cout << na.length();
 }
 
 base_array<float> fun(pair<nested_array<pair<int, float> >, base_array<float> > x14) {
