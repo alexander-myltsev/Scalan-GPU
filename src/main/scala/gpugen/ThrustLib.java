@@ -167,6 +167,8 @@ public class ThrustLib {
         private native void allocate();
 
         private native void allocate(@ByRef DeviceVectorFloatPointer dvp);
+
+        public native void print();
     }
 
     @Name("scalan_thrust::base_array<int>")
@@ -212,8 +214,8 @@ public class ThrustLib {
     }
     // ----- Scalan-Thrust:end -----
 
-    @Name("fun1")
-    public native static void mainFun1(@ByRef InputType input);
+    @Name("fun")
+    public native static @ByVal BaseArrayFloat mainFun1(@ByRef InputType input);
 
     private static void test1(PrintStream o) {
         DeviceVectorIntPointer vp_in = new DeviceVectorIntPointer();
@@ -239,22 +241,25 @@ public class ThrustLib {
     }
 
     private static void test2(PrintStream o) {
-        DeviceVectorFloatPointer dvfp = new DeviceVectorFloatPointer();
-        dvfp.push_back(1f); dvfp.push_back(2f); dvfp.push_back(3f); dvfp.push_back(4f); dvfp.push_back(5f);
-        BaseArrayFloat baf = new BaseArrayFloat(dvfp);
+        DeviceVectorIntPointer cols = new DeviceVectorIntPointer();
+        cols.push_back(0); cols.push_back(2); cols.push_back(0); cols.push_back(1); cols.push_back(2); cols.push_back(3);
 
-        DeviceVectorIntPointer dvip = new DeviceVectorIntPointer();
-        dvip.push_back(1); dvip.push_back(2); dvip.push_back(3); dvip.push_back(4); dvip.push_back(5);
-        BaseArrayInt bai = new BaseArrayInt(dvip);
+        DeviceVectorFloatPointer vals = new DeviceVectorFloatPointer();
+        vals.push_back(1f); vals.push_back(2f); vals.push_back(3f); vals.push_back(4f); vals.push_back(5f); vals.push_back(6f);
 
-        PairArrayIntFloat paif = new PairArrayIntFloat(bai, baf);
-        NestedArrayPairIntFloat napif = new NestedArrayPairIntFloat(paif, bai);
+        DeviceVectorFloatPointer v = new DeviceVectorFloatPointer();
+        v.push_back(1f); v.push_back(2f); v.push_back(3f); v.push_back(4f);
 
-        DeviceVectorFloatPointer dvfp2 = new DeviceVectorFloatPointer();
-        dvfp2.push_back(10f); dvfp2.push_back(10f); dvfp2.push_back(10f);
-        BaseArrayFloat baf2 = new BaseArrayFloat(dvfp2);
+        DeviceVectorIntPointer segs = new DeviceVectorIntPointer();
+        segs.push_back(2); segs.push_back(3); segs.push_back(1);
 
-        ThrustLib.mainFun1(new InputType(napif, baf2));
+        BaseArrayFloat res =
+            ThrustLib.mainFun1(new InputType(
+                new NestedArrayPairIntFloat(
+                        new PairArrayIntFloat(new BaseArrayInt(cols), new BaseArrayFloat(vals)),
+                        new BaseArrayInt(segs)),
+                new BaseArrayFloat(v)));
+        res.print();
     }
 
     public static void main(String... args) {

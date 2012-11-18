@@ -134,6 +134,14 @@ namespace scalan_thrust {
       base_array<T> res(d_vec_res);
       return res;
     }
+
+    void print() {
+       std::cout << "base_array(" << this->length() << "): ";
+      for (int i = 0; i < length(); i++) {
+	std::cout << this->m_data[i] << " ";
+      }
+      std::cout << std::endl;
+    }
   };
   
   template <class T>
@@ -316,7 +324,7 @@ void fun1(const pair<nested_array<pair<int, float> >, base_array<float> >& input
   std::cout << input.fst().length() << " " << input.snd().length();
 }
 
-base_array<float> fun(pair<nested_array<pair<int, float> >, base_array<float> > x14) {
+base_array<float> fun(const pair<nested_array<pair<int, float> >, base_array<float> >& x14) {
 base_array<float> x16 = x14.snd();
 nested_array<pair<int, float> > x15 = x14.fst();
 pair_array<int, float> x17 = x15.values();
