@@ -15,8 +15,8 @@ import java.nio.IntBuffer;
         "<thrust/fill.h>",
         "<thrust/replace.h>",
         "<thrust/functional.h>",
-        "/host/Keldysh/prj/Scalan-v2/tmp/fun.cu"},
-        includepath = {"/opt/cuda/include/"})
+        "d:/phd/Scalan-v2/tmp/fun.cpp"},
+        includepath = {"d:/phd/thrust-src"})
 public class ThrustLib {
     static { Loader.load(); }
 

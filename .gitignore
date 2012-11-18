@@ -1,3 +1,6 @@
+tmp/jniThrustLib.cpp
+
+*~
 lib/
 .ensime_lucene
 .cache
@@ -14,8 +17,6 @@ test-out/
 .idea/
 out/
 ._.DS_Store
-*.md~
-*.sbt~
-*.properties~
-*.scala~
 *.o
+*.obj
+*.exe
