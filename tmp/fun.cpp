@@ -78,7 +78,7 @@ namespace scalan_thrust {
     T1 m_v1;
     T2 m_v2;
   public:
-    pair(const T1& v1, const T2& v2) : m_v1(v1), m_v2(v2)  {  }
+    pair(T1 v1, T2 v2) : m_v1(v1), m_v2(v2)  {  }
 
     T1 fst() const { return m_v1; }
     T2 snd() const { return m_v2; }
@@ -133,14 +133,6 @@ namespace scalan_thrust {
         d_vec_res.begin());
       base_array<T> res(d_vec_res);
       return res;
-    }
-
-    void print() {
-       std::cout << "base_array(" << this->length() << "): ";
-      for (int i = 0; i < length(); i++) {
-	std::cout << this->m_data[i] << " ";
-      }
-      std::cout << std::endl;
     }
   };
   
@@ -319,11 +311,6 @@ using scalan_thrust::sum_lifted;
 
 
 // ----------------------------------------
-void fun1(const pair<nested_array<pair<int, float> >, base_array<float> >& input) {
-  std::cout << "DEBUG -- input array: ";
-  std::cout << input.fst().length() << " " << input.snd().length();
-}
-
 base_array<float> fun(const pair<nested_array<pair<int, float> >, base_array<float> >& x14) {
 base_array<float> x16 = x14.snd();
 nested_array<pair<int, float> > x15 = x14.fst();

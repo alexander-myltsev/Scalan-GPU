@@ -145,9 +145,16 @@ object GpuGenTest {
 
   def main(args: Array[String]): Unit = {
     val f = compile1(smvm)
-    val arr = (10 to 16).toArray
-    //    val res = f(arr)
-    //    System.out.println(res)
+
+    val cols: PArray[Int] = ExpStdArray(Array(0, 2, 0, 1, 2 ,3))
+    val vals: PArray[Float] = ExpStdArray(Array(1f, 2f, 3f, 4f, 5f, 6f))
+    val rows: PArray[Pair[Int, Float]] = ExpPairArray(cols, vals)
+    val segs: PArray[Pair[Int, Int]] = ExpStdArray(Array((2, -1), (3, -1), (1, -1)))
+    val m: PArray[PArray[Pair[Int, Float]]] = ExpNestedArray(rows, segs)
+    val v: PArray[Float] = ExpStdArray(Array(1f, 2f, 3f, 4f, 5f))
+    val input: Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]] = (m, v)
+    val res = f(input)
+    System.out.println(res)
   }
 
   def generateFunSignature(sx: Sym[_], eRes: Elem[_])(implicit stream: PrintWriter): Unit = {
@@ -196,7 +203,7 @@ object GpuGenTest {
 
     lam.x.Elem.manifest.toString match {
       case "scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]], scalan.dsl.ArraysBase$PArray[Float]]" =>
-        stream.println(tp + " fun(pair<nested_array<pair<int, float> >, base_array<float> > " + quote(lam.x) + ") {")
+        stream.println(tp + " fun(const pair<nested_array<pair<int, float> >, base_array<float> >& " + quote(lam.x) + ") {")
     }
     emitBlock(lam.y)(stream)
     stream.println("return " + quote(lam.y) + ";")
@@ -255,6 +262,22 @@ nested_array<pair<int, float> > m(&rows, segs);
     fw.write(programText)
     fw.flush
     fw.close
+
+    val r: A => B = (x: A) => {
+      x match {
+        case (x: Float) =>
+          !!!("not implemented")
+        case (x: Int) =>
+          !!!("not implemented")
+        case (arr: Array[Float]) =>
+          !!!("Unexpected type")
+        case (x: Array[Int]) =>
+          !!!("not implemented")
+        case _ =>
+          !!!("Unexpected type")
+      }
+    }
+    r
   }
 
   def compile[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): A => B = {
