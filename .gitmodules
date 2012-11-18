@@ -1,0 +1,3 @@
+[submodule "javacpp"]
+	path = javacpp
+	url = git://./javacpp
