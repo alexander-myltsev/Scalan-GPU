@@ -202,16 +202,18 @@ public class ThrustLib {
         private native void allocate(PairArrayIntFloat paif, @ByRef BaseArrayInt segments);
     }
 
-//    @Name("scalan_thrust::pair<nested_array<pair<int, float> >, base_array<float> >")
-//    public static class InputType extends Pointer {
-//        static { Loader.load(); }
-//
-//        public InputType() { allocate}
-//    }
+    @Name("scalan_thrust::pair<nested_array<pair<int, float> >, base_array<float> >")
+    public static class InputType extends Pointer {
+        static { Loader.load(); }
+
+        public InputType(@ByRef NestedArrayPairIntFloat napif, @ByRef BaseArrayFloat baf) { allocate(napif, baf); }
+
+        private native void allocate(@ByRef NestedArrayPairIntFloat napif, @ByRef BaseArrayFloat baf);
+    }
     // ----- Scalan-Thrust:end -----
 
     @Name("fun1")
-    public native static void mainFun1(@ByRef NestedArrayPairIntFloat napif);
+    public native static void mainFun1(@ByRef InputType input);
 
     private static void test1(PrintStream o) {
         DeviceVectorIntPointer vp_in = new DeviceVectorIntPointer();
@@ -248,7 +250,11 @@ public class ThrustLib {
         PairArrayIntFloat paif = new PairArrayIntFloat(bai, baf);
         NestedArrayPairIntFloat napif = new NestedArrayPairIntFloat(paif, bai);
 
-        ThrustLib.mainFun1(napif);
+        DeviceVectorFloatPointer dvfp2 = new DeviceVectorFloatPointer();
+        dvfp2.push_back(10f); dvfp2.push_back(10f); dvfp2.push_back(10f);
+        BaseArrayFloat baf2 = new BaseArrayFloat(dvfp2);
+
+        ThrustLib.mainFun1(new InputType(napif, baf2));
     }
 
     public static void main(String... args) {
