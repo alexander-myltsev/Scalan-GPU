@@ -355,7 +355,7 @@ device_vector<int>* test(device_vector<int>* x) {
           */
           !!!("Unexpected type")
         case (x: Array[Int]) =>
-          val vp_in = new ThrustLib.DeviceVectorPointer()
+          val vp_in = new ThrustLib.DeviceVectorIntPointer()
           (0 to 128).foreach(x => vp_in push_back x) // TODO: replace (0 to 128) with x.
           val out = ThrustLib.test(vp_in)
           System.out.println(out)
