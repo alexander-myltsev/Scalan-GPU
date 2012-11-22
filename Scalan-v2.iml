@@ -17,10 +17,10 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/javacpp/src/main/java" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/javacpp/src/main/resources" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/samples/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/lib" />
       <excludeFolder url="file://$MODULE_DIR$/project" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
-      <excludeFolder url="file://$MODULE_DIR$/tests" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

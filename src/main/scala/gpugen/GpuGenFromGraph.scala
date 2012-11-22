@@ -9,6 +9,7 @@ import java.io.{FileWriter, ByteArrayOutputStream, PrintWriter}
 import scalan.dsl._
 import scalan.common.Monoid
 import main.scala.gpugen.ThrustLib
+import scalan.sequential.ScalanSequential
 
 class GenerationFailedException(msg: String) extends Exception(msg)
 
@@ -18,8 +19,23 @@ trait GpuArrayOperations extends ScalanStaged {
 
   def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
 
-  def smvm = {
-    val input = fresh[Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]]]
+  //  def smvm: Rep[(PArray[PArray[(Int, Float)]], PArray[Float]) => PArray[Float]] = {
+  //    val input = fresh[Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]]]
+  //
+  //    val m = First(input)
+  //    val v = Second(input)
+  //
+  //    val naVals = NestedArrayValues(m)
+  //    val bp = BackPermute(v, FirstPA(naVals))
+  //    val ba = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), bp, SecondPA(naVals))
+  //    val res: PA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
+  //
+  //    val lam = Lambda(null, input, res)
+  //    lam
+  //  }
+
+  lazy val smvm = mkLambda((input: Rep[Pair[PArray[PArray[(Int, Float)]], PArray[Float]]]) => {
+    //val input = fresh[Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]]]
 
     val m = First(input)
     val v = Second(input)
@@ -27,11 +43,11 @@ trait GpuArrayOperations extends ScalanStaged {
     val naVals = NestedArrayValues(m)
     val bp = BackPermute(v, FirstPA(naVals))
     val ba = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), bp, SecondPA(naVals))
-    val res: SumLiftedPA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
-
-    val lam = Lambda(null, input, res)
-    lam
-  }
+    val res: PA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
+    res
+    //val lam = Lambda(null, input, res)
+    //lam)
+  })
 }
 
 trait GpuGenImproved extends GenericCodegen {
@@ -140,23 +156,45 @@ trait GpuGenImproved extends GenericCodegen {
 
 object GpuGenTest {
   val oGpu = new GpuArrayOperations with GpuGenImproved
-
-  import oGpu._
+  val seq = new ScalanSequential {}
 
   def main(args: Array[String]): Unit = {
-    val f = compile1(smvm)
+    import seq._
+    //import oGpu._
 
-    val cols: PArray[Int] = ExpStdArray(Array(0, 2, 0, 1, 2 ,3))
-    val vals: PArray[Float] = ExpStdArray(Array(1f, 2f, 3f, 4f, 5f, 6f))
-    val rows: PArray[Pair[Int, Float]] = ExpPairArray(cols, vals)
-    val segs: PArray[Pair[Int, Int]] = ExpStdArray(Array((2, -1), (3, -1), (1, -1)))
-    val m: PArray[PArray[Pair[Int, Float]]] = ExpNestedArray(rows, segs)
-    val v: PArray[Float] = ExpStdArray(Array(1f, 2f, 3f, 4f, 5f))
-    val input: Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]] = (m, v)
-    val res = f(input)
+    //val f: Pair[PA[PA[Pair[Int, Float]]], PA[Float]] => PA[Float] = compile1(seq)(oGpu.smvm)
+    val f = compile1[((oGpu.PArray[oGpu.PArray[(Int, Float)]], oGpu.PArray[Float])) => oGpu.PArray[Float],
+      ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float]](seq)(oGpu.smvm)
+
+    val colsArr: Array[Int] = Array(0, 2, 0, 1, 2, 3)
+    val cols: PA[Int] = fromArray(colsArr)
+
+    val valsArr: Array[Float] = Array(1f, 2f, 3f, 4f, 5f, 6f)
+    val vals: PA[Float] = fromArray(valsArr)
+
+    //val rowsArr: Array[(Int, Float)] = Array((0, 1f), (2, 2f), (0, 3f), (1, 4f), (2, 5f), (3, 6f))
+    // TODO: Why can't be written: fromArray(Array((0, 1f), (2, 2f), (0, 3f), (1, 4f), (2, 5f), (3, 6f)))
+    //val rows: PArray[Pair[Int, Float]] = fromArray(rowsArr)
+    val rows: PA[(Int, Float)] = cols zip vals
+
+    val segsLenArr: Array[Int] = Array(2, 3, 1)
+    val segsLen: PA[Int] = fromArray(segsLenArr)
+    val segsIdxArr: Array[Int] = Array(0, 2, 5)
+    val segsIdx: PA[Int] = fromArray(segsIdxArr)
+    val segs: PA[Pair[Int, Int]] = segsIdx zip segsLen
+
+    val m: PA[PA[(Int, Float)]] = mkNestedArray(rows, segs)
+
+    val vArr: Array[Float] = Array(1f, 2f, 3f, 4f, 5f)
+    val v: PA[Float] = fromArray(vArr)
+
+    //val input: Pair[PA[PA[Pair[Int, Float]]], PA[Float]] = (m, v)
+    //val res = f(input)
+    val res = f(m, v)
     System.out.println(res)
   }
 
+  /*
   def generateFunSignature(sx: Sym[_], eRes: Elem[_])(implicit stream: PrintWriter): Unit = {
     // TODO: Any better way to analyze types?
     // TODO: Should be pattern: stream.println(remap(RES_TYPE_str) + " test(" + remap(IN_TYPE_str) + ") {")
@@ -170,9 +208,16 @@ object GpuGenTest {
       case _ => !!!("Unexpected type")
     }
   }
+  */
 
-  def compile1[A, B](lam: Lambda[A, B]) = {
-    globDefsArr = globalDefs.toArray
+  //def compile1[A1, A2, B](seq: ScalanSequential)(lam: oGpu.Lambda[(oGpu.PArray[A1], oGpu.PArray[A2]), oGpu.PArray[B]]): (seq.PA[A1], seq.PA[A2]) => seq.PA[B] =
+  //def compile1[A, B](seq: ScalanSequential)(lam: oGpu.Lambda[oGpu.PArray[A], oGpu.PArray[B]]): seq.PA[A] => seq.PA[B] =
+  def compile1[A, B](seq: ScalanSequential)(lam: oGpu.Rep[A]): seq.Rep[B] = {
+    //def compile1[A1, A2, B](seq: ScalanSequential)(lam: oGpu.Rep[(oGpu.PArray[A1], oGpu.PArray[A2]) => oGpu.PArray[B]]): (seq.PA[A1], seq.PA[A2]) => seq.PA[B] = {
+
+    import oGpu._
+
+    //globDefsArr = globalDefs.toArray
 
     val bytesStream = new ByteArrayOutputStream
     val stream = new PrintWriter(bytesStream, true) {
@@ -196,90 +241,94 @@ object GpuGenTest {
     thrust_lib_code.close
     stream.println("// ----------------------------------------")
 
-    val tp = lam.y.Elem.manifest.toString match {
-      case "scalan.dsl.ArraysBase$PArray[Float]" =>
-        "base_array<float>"
-    }
+    /*
+        val tp = lam.y.Elem.manifest.toString match {
+          case "scalan.dsl.ArraysBase$PArray[Float]" =>
+            "base_array<float>"
+        }
 
-    lam.x.Elem.manifest.toString match {
-      case "scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]], scalan.dsl.ArraysBase$PArray[Float]]" =>
-        stream.println(tp + " fun(const pair<nested_array<pair<int, float> >, base_array<float> >& " + quote(lam.x) + ") {")
-    }
-    emitBlock(lam.y)(stream)
-    stream.println("return " + quote(lam.y) + ";")
-    stream.println("}")
+        lam.x.Elem.manifest.toString match {
+          case "scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]], scalan.dsl.ArraysBase$PArray[Float]]" =>
+            stream.println(tp + " fun(const pair<nested_array<pair<int, float> >, base_array<float> >& " + quote(lam.x) + ") {")
+        }
+        emitBlock(lam.y)(stream)
+        stream.println("return " + quote(lam.y) + ";")
+        stream.println("}")
 
-    stream.println("""
- #define FLOAT_EQ(x, y) fabs((x) - (y)) < 0.001f
- void test_sum() {
-   host_vector<int> x5(10, 5);
-   base_array<int> x6(x5);
-   int x7 = x6.sum(monoid(0.f, monoid::OP_PLUS));
-   assert(FLOAT_EQ(x7, 0.f + 5.f * 10.f));
- }
+        stream.println("""
+     #define FLOAT_EQ(x, y) fabs((x) - (y)) < 0.001f
+     void test_sum() {
+       host_vector<int> x5(10, 5);
+       base_array<int> x6(x5);
+       int x7 = x6.sum(monoid(0.f, monoid::OP_PLUS));
+       assert(FLOAT_EQ(x7, 0.f + 5.f * 10.f));
+     }
 
- int test(device_vector<int>* input) {
-    return input->size();
-  }
-
-int main() {
-// init
-host_vector<int> cols_h(6);
-cols_h[0] = 0; cols_h[1] = 2; cols_h[2] = 0; cols_h[3] = 1; cols_h[4] = 2; cols_h[5] = 3;
-
-host_vector<float> vals_h(6);
-vals_h[0] = 1.f; vals_h[1] = 2.f; vals_h[2] = 3.f; vals_h[3] = 4.f; vals_h[4] = 5.f; vals_h[5] = 6.f;
-
-host_vector<float> v_h(4);
-v_h[0] = 1.f; v_h[1] = 2.f; v_h[2] = 3.f; v_h[3] = 4.f;
-
-host_vector<int> segs_h(3);
-segs_h[0] = 2; segs_h[1] = 3; segs_h[2] = 1;
-
-base_array<float> vals(vals_h), v(v_h);
-base_array<int> cols(cols_h), segs(segs_h);
-pair_array<int, float> rows(cols, vals);
-nested_array<pair<int, float> > m(&rows, segs);
-
-       base_array<float> res = fun(pair<nested_array<pair<int, float> >, base_array<float> >(m, v));
-
-  // verify
-  assert(res.length() == segs.length());
-  assert(FLOAT_EQ(res.data()[0], 7.f));
-  assert(FLOAT_EQ(res.data()[1], 26.f));
-  assert(FLOAT_EQ(res.data()[2], 24.f));
-
-  std::cout << "OK!";
-
-      return 0;
-      }""")
-
-    stream.flush
-    val programText = new String(bytesStream.toByteArray)
-    //System.out.println(programText)
-
-    val fw = new FileWriter("tmp/fun.cpp")
-    fw.write(programText)
-    fw.flush
-    fw.close
-
-    val r: A => B = (x: A) => {
-      x match {
-        case (x: Float) =>
-          !!!("not implemented")
-        case (x: Int) =>
-          !!!("not implemented")
-        case (arr: Array[Float]) =>
-          !!!("Unexpected type")
-        case (x: Array[Int]) =>
-          !!!("not implemented")
-        case _ =>
-          !!!("Unexpected type")
+     int test(device_vector<int>* input) {
+        return input->size();
       }
-    }
-    r
+
+    int main() {
+    // init
+    host_vector<int> cols_h(6);
+    cols_h[0] = 0; cols_h[1] = 2; cols_h[2] = 0; cols_h[3] = 1; cols_h[4] = 2; cols_h[5] = 3;
+
+    host_vector<float> vals_h(6);
+    vals_h[0] = 1.f; vals_h[1] = 2.f; vals_h[2] = 3.f; vals_h[3] = 4.f; vals_h[4] = 5.f; vals_h[5] = 6.f;
+
+    host_vector<float> v_h(4);
+    v_h[0] = 1.f; v_h[1] = 2.f; v_h[2] = 3.f; v_h[3] = 4.f;
+
+    host_vector<int> segs_h(3);
+    segs_h[0] = 2; segs_h[1] = 3; segs_h[2] = 1;
+
+    base_array<float> vals(vals_h), v(v_h);
+    base_array<int> cols(cols_h), segs(segs_h);
+    pair_array<int, float> rows(cols, vals);
+    nested_array<pair<int, float> > m(&rows, segs);
+
+           base_array<float> res = fun(pair<nested_array<pair<int, float> >, base_array<float> >(m, v));
+
+      // verify
+      assert(res.length() == segs.length());
+      assert(FLOAT_EQ(res.data()[0], 7.f));
+      assert(FLOAT_EQ(res.data()[1], 26.f));
+      assert(FLOAT_EQ(res.data()[2], 24.f));
+
+      std::cout << "OK!";
+
+          return 0;
+          }""")
+
+        stream.flush
+        val programText = new String(bytesStream.toByteArray)
+        //System.out.println(programText)
+
+        val fw = new FileWriter("tmp/fun.cpp")
+        fw.write(programText)
+        fw.flush
+        fw.close
+
+    */
+
+    val r: ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float] = (x1: (seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) =>
+      x1 match {
+        //    case (x: Float) =>
+        //      !!!("not implemented")
+        //    case (x: Int) =>
+        //      !!!("not implemented")
+        //    case (arr: Array[Float]) =>
+        //      !!!("Unexpected type")
+        //    case (x: Array[Int]) =>
+        //      !!!("not implemented")
+        case _ =>
+          //!!!("Unexpected type")
+          seq.SeqStdArray(Array(1f, 2f, 3f))(seq.floatElement)
+      }
+    r.asInstanceOf[B]
   }
 
+  /*
   def compile[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): A => B = {
     val bytesStream = new ByteArrayOutputStream
     val stream = new PrintWriter(bytesStream, true) {
@@ -314,16 +363,16 @@ nested_array<pair<int, float> > m(&rows, segs);
       "*******************************************/")
 
     stream.println( """
-#include <thrust/device_vector.h>
-#include <thrust/transform.h>
-#include <thrust/sequence.h>
-#include <thrust/copy.h>
-#include <thrust/fill.h>
-#include <thrust/replace.h>
-#include <thrust/functional.h>
-#include <iostream>
+  #include <thrust/device_vector.h>
+  #include <thrust/transform.h>
+  #include <thrust/sequence.h>
+  #include <thrust/copy.h>
+  #include <thrust/fill.h>
+  #include <thrust/replace.h>
+  #include <thrust/functional.h>
+  #include <iostream>
 
-using namespace thrust;
+  using namespace thrust;
                     """)
 
     generateFunSignature(x, eB)(stream)
@@ -338,7 +387,7 @@ using namespace thrust;
     // Test output
     /*
     stream.println("""
-device_vector<int>* test(device_vector<int>* x) {
+  device_vector<int>* test(device_vector<int>* x) {
   device_vector<int>* x_out = new device_vector<int>(x->size());
   thrust::transform(x->begin(), x->end(), x_out->begin(), thrust::negate<int>());
   //cout << "from C++: " << flush;
@@ -389,4 +438,5 @@ device_vector<int>* test(device_vector<int>* x) {
     }
     r
   }
+  */
 }
