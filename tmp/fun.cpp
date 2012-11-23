@@ -134,6 +134,20 @@ namespace scalan_thrust {
       base_array<T> res(d_vec_res);
       return res;
     }
+
+    void print() {
+      std::cout << "base_array: ";
+      for (int i = 0; i < m_data.size(); i++) {
+        std::cout << m_data[i] << " ";
+      }
+      std::cout << std::endl;
+    }
+
+    float get(int i) {
+      if (i >= 0 && i < m_data.size())
+        return m_data[i];
+      return 0;
+    }
   };
   
   template <class T>

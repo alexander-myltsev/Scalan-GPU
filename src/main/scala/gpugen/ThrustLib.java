@@ -169,6 +169,8 @@ public class ThrustLib {
         private native void allocate(@ByRef DeviceVectorFloatPointer dvp);
 
         public native void print();
+
+        public native float get(int i);
     }
 
     @Name("scalan_thrust::base_array<int>")

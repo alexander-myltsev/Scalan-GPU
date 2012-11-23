@@ -311,7 +311,8 @@ object GpuGenTest {
 
     */
 
-    val r: ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float] = (x1: (seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) =>
+    val r: ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float] = (x1: (seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => {
+      import seq._
       x1 match {
         //    case (x: Float) =>
         //      !!!("not implemented")
@@ -321,10 +322,40 @@ object GpuGenTest {
         //      !!!("Unexpected type")
         //    case (x: Array[Int]) =>
         //      !!!("not implemented")
+        case input: (Pair[PArray[PArray[(Int, Float)]], PArray[Float]]) =>
+          import ThrustLib._
+
+          val m = input._1
+          val v = {
+            val x = new DeviceVectorFloatPointer()
+            input._2.toArray.foreach(v_i => x.push_back(v_i))
+            x
+          }
+
+          val cols = new DeviceVectorIntPointer()
+          val vals = new DeviceVectorFloatPointer()
+          val segs = new DeviceVectorIntPointer()
+          m.toArray.foreach(parr => {
+            segs.push_back(parr.length)
+            parr.toArray.foreach(v => {
+              cols.push_back(v._1)
+              vals.push_back(v._2)
+            })
+          })
+
+          val resBA: BaseArrayFloat = mainFun1(
+              new InputType(
+                new NestedArrayPairIntFloat(
+                  new PairArrayIntFloat(
+                    new BaseArrayInt(cols), new BaseArrayFloat(vals)),
+                  new BaseArrayInt(segs)), new BaseArrayFloat(v)))
+
+          val resA = 0.until(resBA.length().toInt).map(i => resBA.get(i)).toArray
+          seq.SeqStdArray(resA)(seq.floatElement)
         case _ =>
-          //!!!("Unexpected type")
-          seq.SeqStdArray(Array(1f, 2f, 3f))(seq.floatElement)
+          !!!("Unexpected type")
       }
+    }
     r.asInstanceOf[B]
   }
 
