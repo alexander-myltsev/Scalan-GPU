@@ -53,7 +53,7 @@ trait GpuArrayOperations extends ScalanStaged {
 trait GpuGenImproved extends GenericCodegen {
   self: ArraysBase with StagedImplementation =>
 
-  var globDefsArr: Array[TP[_]] = null
+  //var globDefsArr: Array[TP[_]] = null
 
   def remap[A](m: Manifest[A]): String = m.toString match {
     case "Int" => "int"
@@ -212,7 +212,7 @@ object GpuGenTest {
 
   //def compile1[A1, A2, B](seq: ScalanSequential)(lam: oGpu.Lambda[(oGpu.PArray[A1], oGpu.PArray[A2]), oGpu.PArray[B]]): (seq.PA[A1], seq.PA[A2]) => seq.PA[B] =
   //def compile1[A, B](seq: ScalanSequential)(lam: oGpu.Lambda[oGpu.PArray[A], oGpu.PArray[B]]): seq.PA[A] => seq.PA[B] =
-  def compile1[A, B](seq: ScalanSequential)(lam: oGpu.Rep[A]): seq.Rep[B] = {
+  def compile1[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {
     //def compile1[A1, A2, B](seq: ScalanSequential)(lam: oGpu.Rep[(oGpu.PArray[A1], oGpu.PArray[A2]) => oGpu.PArray[B]]): (seq.PA[A1], seq.PA[A2]) => seq.PA[B] = {
 
     import oGpu._
@@ -241,7 +241,8 @@ object GpuGenTest {
     thrust_lib_code.close
     stream.println("// ----------------------------------------")
 
-    /*
+    findDefinition(l.asInstanceOf[Sym[_]]).get.definition.get match {
+      case lam: Lambda[_, _] =>
         val tp = lam.y.Elem.manifest.toString match {
           case "scalan.dsl.ArraysBase$PArray[Float]" =>
             "base_array<float>"
@@ -255,7 +256,7 @@ object GpuGenTest {
         stream.println("return " + quote(lam.y) + ";")
         stream.println("}")
 
-        stream.println("""
+        stream.println( """
      #define FLOAT_EQ(x, y) fabs((x) - (y)) < 0.001f
      void test_sum() {
        host_vector<int> x5(10, 5);
@@ -309,7 +310,9 @@ object GpuGenTest {
         fw.flush
         fw.close
 
-    */
+      case _ =>
+        !!!("Not implemented")
+    }
 
     val r: ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float] = (x1: (seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => {
       import seq._
@@ -344,11 +347,11 @@ object GpuGenTest {
           })
 
           val resBA: BaseArrayFloat = mainFun1(
-              new InputType(
-                new NestedArrayPairIntFloat(
-                  new PairArrayIntFloat(
-                    new BaseArrayInt(cols), new BaseArrayFloat(vals)),
-                  new BaseArrayInt(segs)), new BaseArrayFloat(v)))
+            new InputType(
+              new NestedArrayPairIntFloat(
+                new PairArrayIntFloat(
+                  new BaseArrayInt(cols), new BaseArrayFloat(vals)),
+                new BaseArrayInt(segs)), new BaseArrayFloat(v)))
 
           val resA = 0.until(resBA.length().toInt).map(i => resBA.get(i)).toArray
           seq.SeqStdArray(resA)(seq.floatElement)
