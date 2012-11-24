@@ -1,4 +1,3 @@
-// NOTE: This is implementation when SVMV operation is encoded in form of FlatGraph nodes
 package scala.virtualization.lms
 
 import internal._
@@ -19,24 +18,7 @@ trait GpuArrayOperations extends ScalanStaged {
 
   def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
 
-  //  def smvm: Rep[(PArray[PArray[(Int, Float)]], PArray[Float]) => PArray[Float]] = {
-  //    val input = fresh[Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]]]
-  //
-  //    val m = First(input)
-  //    val v = Second(input)
-  //
-  //    val naVals = NestedArrayValues(m)
-  //    val bp = BackPermute(v, FirstPA(naVals))
-  //    val ba = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), bp, SecondPA(naVals))
-  //    val res: PA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
-  //
-  //    val lam = Lambda(null, input, res)
-  //    lam
-  //  }
-
   lazy val smvm = mkLambda((input: Rep[Pair[PArray[PArray[(Int, Float)]], PArray[Float]]]) => {
-    //val input = fresh[Pair[PArray[PArray[Pair[Int, Float]]], PArray[Float]]]
-
     val m = First(input)
     val v = Second(input)
 
@@ -45,8 +27,6 @@ trait GpuArrayOperations extends ScalanStaged {
     val ba = ExpBinopArray(NumericPlus(Const(0f), Const(0f), null), bp, SecondPA(naVals))
     val res: PA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
     res
-    //val lam = Lambda(null, input, res)
-    //lam)
   })
 }
 
@@ -160,9 +140,7 @@ object GpuGenTest {
 
   def main(args: Array[String]): Unit = {
     import seq._
-    //import oGpu._
 
-    //val f: Pair[PA[PA[Pair[Int, Float]]], PA[Float]] => PA[Float] = compile1(seq)(oGpu.smvm)
     val f = compile1[((oGpu.PArray[oGpu.PArray[(Int, Float)]], oGpu.PArray[Float])) => oGpu.PArray[Float],
       ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float]](seq)(oGpu.smvm)
 
@@ -172,9 +150,6 @@ object GpuGenTest {
     val valsArr: Array[Float] = Array(1f, 2f, 3f, 4f, 5f, 6f)
     val vals: PA[Float] = fromArray(valsArr)
 
-    //val rowsArr: Array[(Int, Float)] = Array((0, 1f), (2, 2f), (0, 3f), (1, 4f), (2, 5f), (3, 6f))
-    // TODO: Why can't be written: fromArray(Array((0, 1f), (2, 2f), (0, 3f), (1, 4f), (2, 5f), (3, 6f)))
-    //val rows: PArray[Pair[Int, Float]] = fromArray(rowsArr)
     val rows: PA[(Int, Float)] = cols zip vals
 
     val segsLenArr: Array[Int] = Array(2, 3, 1)
@@ -188,33 +163,11 @@ object GpuGenTest {
     val vArr: Array[Float] = Array(1f, 2f, 3f, 4f, 5f)
     val v: PA[Float] = fromArray(vArr)
 
-    //val input: Pair[PA[PA[Pair[Int, Float]]], PA[Float]] = (m, v)
-    //val res = f(input)
     val res = f(m, v)
     System.out.println(res)
   }
 
-  /*
-  def generateFunSignature(sx: Sym[_], eRes: Elem[_])(implicit stream: PrintWriter): Unit = {
-    // TODO: Any better way to analyze types?
-    // TODO: Should be pattern: stream.println(remap(RES_TYPE_str) + " test(" + remap(IN_TYPE_str) + ") {")
-    eRes.manifest.erasure.getSimpleName match {
-      case "int" => stream.print(remap(eRes.manifest) + " ")
-      case _ => !!!("Unexpected. Implement it")
-    }
-
-    sx.Elem.manifest.erasure.getSimpleName match {
-      case "int[]" => stream.println("test(" + remap(sx.Elem.manifest) + " " + quote(sx) + ") {")
-      case _ => !!!("Unexpected type")
-    }
-  }
-  */
-
-  //def compile1[A1, A2, B](seq: ScalanSequential)(lam: oGpu.Lambda[(oGpu.PArray[A1], oGpu.PArray[A2]), oGpu.PArray[B]]): (seq.PA[A1], seq.PA[A2]) => seq.PA[B] =
-  //def compile1[A, B](seq: ScalanSequential)(lam: oGpu.Lambda[oGpu.PArray[A], oGpu.PArray[B]]): seq.PA[A] => seq.PA[B] =
   def compile1[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {
-    //def compile1[A1, A2, B](seq: ScalanSequential)(lam: oGpu.Rep[(oGpu.PArray[A1], oGpu.PArray[A2]) => oGpu.PArray[B]]): (seq.PA[A1], seq.PA[A2]) => seq.PA[B] = {
-
     import oGpu._
 
     //globDefsArr = globalDefs.toArray
@@ -361,116 +314,4 @@ object GpuGenTest {
     }
     r.asInstanceOf[B]
   }
-
-  /*
-  def compile[A, B](lam: Rep[A => B])(implicit eA: Elem[A], eB: Elem[B]): A => B = {
-    val bytesStream = new ByteArrayOutputStream
-    val stream = new PrintWriter(bytesStream, true) {
-      override def println(s: String) = {
-        //System.out.println(s)
-        super.println(s)
-        System.out.println()
-      }
-
-      override def print(s: String) = {
-        System.out.print(s)
-        super.print(s)
-      }
-    }
-    //val stream = new PrintWriter(System.out, true)
-    //stream.println(globalDefs.mkString("globalDefs:[", ", ", "]"))
-
-    val x = fresh[A]
-    val y: Rep[B] = lam(x)
-
-    System.out.println("x: " + x.toString)
-    System.out.println("y: " + y.toString)
-    System.out.println(globalDefs.mkString("globalDefs:[\n\t", ",\n\t", "\n]"))
-
-    //val sA = eA.manifest.toString
-    //val sB = eB.manifest.toString
-
-    globDefsArr = globalDefs.toArray
-
-    stream.println("/*****************************************\n" +
-      "  Emitting Generated Code                  \n" +
-      "*******************************************/")
-
-    stream.println( """
-  #include <thrust/device_vector.h>
-  #include <thrust/transform.h>
-  #include <thrust/sequence.h>
-  #include <thrust/copy.h>
-  #include <thrust/fill.h>
-  #include <thrust/replace.h>
-  #include <thrust/functional.h>
-  #include <iostream>
-
-  using namespace thrust;
-                    """)
-
-    generateFunSignature(x, eB)(stream)
-    emitBlock(y)(stream)
-    val resq = quote(getBlockResult(y))
-    //    stream.println("out_size = " + resq + ".size();")
-    //    stream.println("float* " + resq + "_tmp = new float[out_size];")
-    //    stream.println("thrust::copy(" + resq + ".begin(), " + resq + ".end(), " + resq + "_tmp);")
-    //    stream.println("return " + resq + "_tmp;")
-    stream.println("return " + resq + ";")
-
-    // Test output
-    /*
-    stream.println("""
-  device_vector<int>* test(device_vector<int>* x) {
-  device_vector<int>* x_out = new device_vector<int>(x->size());
-  thrust::transform(x->begin(), x->end(), x_out->begin(), thrust::negate<int>());
-  //cout << "from C++: " << flush;
-  //for (int i = 0; i < x_out->size(); i++) {
-  //    cout << (*x_out)[i] << " " << flush;
-  //}
-  return x_out;""")
-  */
-
-    stream.println("}")
-    stream.println(
-      "/*****************************************\n" +
-      "  End of Generated Code                  \n" +
-      "*******************************************/")
-
-    // stream.flush // autoflush <- true
-
-    val programText = new String(bytesStream.toByteArray)
-    //System.out.println(programText)
-    val fw = new FileWriter("tmp/fun.cu")
-    fw.write(programText)
-    fw.flush
-    fw.close
-
-    val r: A => B = (x: A) => {
-      x match {
-        case (x: Float) =>
-          !!!("not implemented")
-        case (x: Int) =>
-          !!!("not implemented")
-        case (arr: Array[Float]) =>
-          /*
-          val len_out = new IntByReference(0)
-          val res = CLibrary.FunLibInstance.fun(arr, arr.length, len_out)
-          val arr_out = res.getPointer.getFloatArray(0, len_out.getValue)
-          arr_out.asInstanceOf[B] // TODO: How to return PArray(Array(Float))
-          */
-          !!!("Unexpected type")
-        case (x: Array[Int]) =>
-          val vp_in = new ThrustLib.DeviceVectorIntPointer()
-          (0 to 128).foreach(x => vp_in push_back x) // TODO: replace (0 to 128) with x.
-          val out = ThrustLib.test(vp_in)
-          System.out.println(out)
-          !!!("not implemented") // TODO: return out
-        case _ =>
-          !!!("Unexpected type")
-      }
-    }
-    r
-  }
-  */
 }
