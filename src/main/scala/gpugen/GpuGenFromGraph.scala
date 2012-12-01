@@ -28,6 +28,11 @@ trait GpuArrayOperations extends ScalanStaged {
     val res: PA[Float] = sumLifted(ExpNestedArray(ba, NestedArraySegments(m)))
     res
   })
+
+  //  lazy val smvm = mkLambda((input: Rep[(PArray[PArray[(Int, Float)]], PArray[Float])]) => {
+  //    val m = First(input)
+  //    val v = Second(input)
+  //  })
 }
 
 trait GpuGenImproved extends GenericCodegen {
@@ -141,7 +146,7 @@ object GpuGenTest {
   def main(args: Array[String]): Unit = {
     import seq._
 
-    val f = compile1[((oGpu.PArray[oGpu.PArray[(Int, Float)]], oGpu.PArray[Float])) => oGpu.PArray[Float],
+    val f = compile[((oGpu.PArray[oGpu.PArray[(Int, Float)]], oGpu.PArray[Float])) => oGpu.PArray[Float],
       ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float]](seq)(oGpu.smvm)
 
     val colsArr: Array[Int] = Array(0, 2, 0, 1, 2, 3)
@@ -167,7 +172,7 @@ object GpuGenTest {
     System.out.println(res)
   }
 
-  def compile1[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {
+  def compile[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {
     import oGpu._
 
     //globDefsArr = globalDefs.toArray
@@ -267,6 +272,9 @@ object GpuGenTest {
         !!!("Not implemented")
     }
 
+    // Program compilation
+    compileCpp()
+
     val r: ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float] = (x1: (seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => {
       import seq._
       x1 match {
@@ -313,5 +321,41 @@ object GpuGenTest {
       }
     }
     r.asInstanceOf[B]
+  }
+
+  def compileCpp() = {
+    //    runProcess(
+    //      """C:\Java\jdk1.7.0\bin\java -Dfile.encoding=UTF-8 """+
+    //        """-classpath "C:\Java\jdk1.7.0\jre\lib\charsets.jar;C:\Java\jdk1.7.0\jre\lib\deploy.jar;C:\Java\jdk1.7.0\jre\lib\javaws.jar;"""+
+    //        """C:\Java\jdk1.7.0\jre\lib\jce.jar;C:\Java\jdk1.7.0\jre\lib\jsse.jar;C:\Java\jdk1.7.0\jre\lib\management-agent.jar;""" +
+    //        """C:\Java\jdk1.7.0\jre\lib\plugin.jar;C:\Java\jdk1.7.0\jre\lib\resources.jar;C:\Java\jdk1.7.0\jre\lib\rt.jar;C:\Java\jdk1.7.0\jre\lib\ext\dnsns.jar;""" +
+    //        """C:\Java\jdk1.7.0\jre\lib\ext\localedata.jar;C:\Java\jdk1.7.0\jre\lib\ext\sunec.jar;""" +
+    //        """C:\Java\jdk1.7.0\jre\lib\ext\sunjce_provider.jar;C:\Java\jdk1.7.0\jre\lib\ext\sunmscapi.jar;""" +
+    //        """C:\Java\jdk1.7.0\jre\lib\ext\zipfs.jar;D:\phd\Scalan-v2\out\production\Scalan-v2;D:\phd\Scalan-v2\lib\junit-4.10.jar;""" +
+    //        """D:\phd\Scalan-v2\lib\maven-plugin-api-2.0.10.jar;D:\phd\scala-virtualized\build\pack\lib\scala-compiler.jar;D:\phd\scala-virtualized\build\pack\lib\scala-library.jar" """+
+    //        """com.googlecode.javacpp.Builder main.scala.gpugen.ThrustLib -propertyfile D:\phd\Scalan-v2\src\javacpp-thrust-openmp-win-x86_64.properties""")
+
+    val javaLibs = List("charsets.jar", "deploy.jar", "javaws.jar", "jce.jar", "jsse.jar", "management-agent.jar",
+      "plugin.jar", "resources.jar", "ext\\dnsns.jar", "ext\\localedata.jar", "ext\\sunec.jar",
+      "ext\\sunjce_provider.jar", "ext\\sunmscapi.jar", "ext\\zipfs.jar")
+    val scalaLibs = List("out\\production\\Scalan-v2", "lib\\junit-4.10.jar", "lib\\maven-plugin-api-2.0.10.jar",
+      "lib\\scala-compiler.jar", "lib\\scala-library.jar")
+    val classPath = "-classpath \"" + javaLibs.map(libName => """C:\Java\jdk1.7.0\jre\lib\""" + libName).mkString("", ";", ";") +
+      scalaLibs.map(libName => """D:\phd\Scalan-v2\""" + libName).mkString("", ";", "") + "\""
+
+    runProcess(
+      """C:\Java\jdk1.7.0\bin\java -Dfile.encoding=UTF-8 """ + classPath +
+        """ com.googlecode.javacpp.Builder main.scala.gpugen.ThrustLib """ +
+        """-propertyfile D:\phd\Scalan-v2\src\javacpp-thrust-openmp-win-x86_64.properties""")
+  }
+
+  def runProcess(procCmd: String) = {
+    System.out.println("===== Running: \n" + procCmd)
+    val buffer = new Array[Byte](1024)
+    val proc = Runtime.getRuntime.exec(procCmd)
+    System.out.println("===== Input stream: ")
+    Stream.continually(proc.getInputStream.read(buffer)).takeWhile(-1 !=).foreach(len => System.out.print(new String(buffer, 0, len, "UTF-8")))
+    System.out.println("===== Error stream: ")
+    Stream.continually(proc.getErrorStream.read(buffer)).takeWhile(-1 !=).foreach(len => System.out.print(new String(buffer, 0, len, "UTF-8")))
   }
 }

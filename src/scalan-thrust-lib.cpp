@@ -139,6 +139,10 @@ namespace scalan_thrust {
       }
       std::cout << std::endl;
     }
+
+    T get(int i) {
+      return m_data[i];
+    }
   };
   
   template <class T>
