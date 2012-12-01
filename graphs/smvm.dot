@@ -1,0 +1,76 @@
+digraph G {
+"Sym(4)" [
+label="Sym(4) \n Const(0.0)"
+shape=box
+]
+"Sym(17)" [
+label="Sym(17) \n Second(var_Sym(14): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]])"
+shape=box
+]
+"var_Sym(14): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]]" -> "Sym(17)"
+"Sym(16)" [
+label="Sym(16) \n First(var_Sym(14): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]])"
+shape=box
+]
+"var_Sym(14): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]]" -> "Sym(16)"
+"Sym(18)" [
+label="Sym(18) \n NestedArrayValues(Sym(16))"
+shape=box
+color=blue
+]
+"Sym(16)" -> "Sym(18)"
+"Sym(19)" [
+label="Sym(19) \n FirstPA(Sym(18))"
+shape=box
+color=blue
+]
+"Sym(18)" -> "Sym(19)"
+"Sym(20)" [
+label="Sym(20) \n BackPermute(Sym(17),Sym(19))"
+shape=box
+color=blue
+]
+"Sym(17)" -> "Sym(20)"
+"Sym(19)" -> "Sym(20)"
+"Sym(21)" [
+label="Sym(21) \n SecondPA(Sym(18))"
+shape=box
+color=blue
+]
+"Sym(18)" -> "Sym(21)"
+"Sym(22)" [
+label="Sym(22) \n ExpBinopArray(NumericPlus(Sym(4), Sym(4)),Sym(20),Sym(21))"
+shape=box
+color=blue
+]
+"Sym(4)" -> "Sym(22)"
+"Sym(4)" -> "Sym(22)"
+"Sym(20)" -> "Sym(22)"
+"Sym(21)" -> "Sym(22)"
+"Sym(23)" [
+label="Sym(23) \n NestedArraySegments(Sym(16))"
+shape=box
+color=blue
+]
+"Sym(16)" -> "Sym(23)"
+"Sym(24)" [
+label="Sym(24) \n NArray(Sym(22),Sym(23))"
+shape=box
+color=blue
+]
+"Sym(22)" -> "Sym(24)"
+"Sym(23)" -> "Sym(24)"
+"Sym(25)" [
+label="Sym(25) \n SumLiftedPA(Sym(24),[Monoid: '+' | 0.0])"
+shape=box
+color=blue
+]
+"Sym(24)" -> "Sym(25)"
+"Sym(15)" [
+label="Sym(15) \n Lambda(var_Sym(14): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]],Sym(25))"
+shape=box
+color=red
+]
+"var_Sym(14): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]]" -> "Sym(15)"
+"Sym(25)" -> "Sym(15)"
+}
