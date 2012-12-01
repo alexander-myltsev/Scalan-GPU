@@ -3,7 +3,7 @@ package main.scala.gpugen
 import java.io.{FileWriter, ByteArrayOutputStream, PrintWriter}
 import scalan.sequential.ScalanSequential
 
-object GpuGenTest {
+object GpuGenRunner {
   val oGpu = new GpuArrayOperations with GpuGen
   val seq = new ScalanSequential {}
 
@@ -13,25 +13,14 @@ object GpuGenTest {
     val f = compile[((oGpu.PArray[oGpu.PArray[(Int, Float)]], oGpu.PArray[Float])) => oGpu.PArray[Float],
       ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float]](seq)(oGpu.smvm)
 
-    val colsArr: Array[Int] = Array(0, 2, 0, 1, 2, 3)
-    val cols: PA[Int] = fromArray(colsArr)
-
-    val valsArr: Array[Float] = Array(1f, 2f, 3f, 4f, 5f, 6f)
-    val vals: PA[Float] = fromArray(valsArr)
-
+    val cols: PA[Int] = fromArray(Array(0, 2, 0, 1, 2, 3))
+    val vals: PA[Float] = fromArray(Array(1f, 2f, 3f, 4f, 5f, 6f))
     val rows: PA[(Int, Float)] = cols zip vals
-
-    val segsLenArr: Array[Int] = Array(2, 3, 1)
-    val segsLen: PA[Int] = fromArray(segsLenArr)
-    val segsIdxArr: Array[Int] = Array(0, 2, 5)
-    val segsIdx: PA[Int] = fromArray(segsIdxArr)
+    val segsLen: PA[Int] = fromArray(Array(2, 3, 1))
+    val segsIdx: PA[Int] = fromArray(Array(0, 2, 5))
     val segs: PA[(Int, Int)] = segsIdx zip segsLen
-
     val m: PA[PA[(Int, Float)]] = mkNestedArray(rows, segs)
-
-    val vArr: Array[Float] = Array(1f, 2f, 3f, 4f, 5f)
-    val v: PA[Float] = fromArray(vArr)
-
+    val v: PA[Float] = fromArray(Array(1f, 2f, 3f, 4f, 5f))
     val res = f(m, v)
     System.out.println(res)
   }

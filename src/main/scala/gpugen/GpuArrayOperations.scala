@@ -20,8 +20,18 @@ trait GpuArrayOperations extends ScalanStaged {
     res
   })
 
-  //  lazy val smvm = mkLambda((input: Rep[(PArray[PArray[(Int, Float)]], PArray[Float])]) => {
-  //    val m = First(input)
-  //    val v = Second(input)
-  //  })
+  // ------------------------------------
+
+  type VectorElem = (Int,Float)
+  type SparseVector = PArray[VectorElem]
+  type Vector = PArray[Float]
+  type Matrix = PArray[SparseVector]
+
+  lazy val sparseVectorMul = mkLambda((input: Rep[(SparseVector, Vector)]) => input match {
+      case Pair(sv, v) => sum(sv map { case Pair(i,value) =>  v(i) * value })
+  })
+
+  lazy val matrixVectorMul = mkLambda((input: Rep[(Matrix, Vector)]) => input match {
+    case Pair(mat, vec) => mat map {row => sparseVectorMul(row, vec)}
+  })
 }
