@@ -18,7 +18,7 @@ trait GpuArrayOperations extends ScalanStaged {
 
   def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
 
-  lazy val smvm = mkLambda((input: Rep[Pair[PArray[PArray[(Int, Float)]], PArray[Float]]]) => {
+  lazy val smvm = mkLambda((input: Rep[(PArray[PArray[(Int, Float)]], PArray[Float])]) => {
     val m = First(input)
     val v = Second(input)
 
@@ -161,7 +161,7 @@ object GpuGenTest {
     val segsLen: PA[Int] = fromArray(segsLenArr)
     val segsIdxArr: Array[Int] = Array(0, 2, 5)
     val segsIdx: PA[Int] = fromArray(segsIdxArr)
-    val segs: PA[Pair[Int, Int]] = segsIdx zip segsLen
+    val segs: PA[(Int, Int)] = segsIdx zip segsLen
 
     val m: PA[PA[(Int, Float)]] = mkNestedArray(rows, segs)
 
@@ -286,7 +286,7 @@ object GpuGenTest {
         //      !!!("Unexpected type")
         //    case (x: Array[Int]) =>
         //      !!!("not implemented")
-        case input: (Pair[PArray[PArray[(Int, Float)]], PArray[Float]]) =>
+        case input: ((PArray[PArray[(Int, Float)]], PArray[Float])) =>
           import ThrustLib._
 
           val m = input._1
