@@ -28,7 +28,7 @@ using std::cout;
 using std::endl;
 using std::string;
 
-#define DEBUG
+//#define DEBUG
 
 namespace scalan_thrust {
   /*
@@ -292,7 +292,9 @@ namespace scalan_thrust {
            thrust::counting_iterator<int>(0), 
            segs_keys.begin());
 
+  #ifdef DEBUG
 	std::cout << "sum_lifted::seg_keys: "; thrust::copy(segs_keys.begin(), segs_keys.end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
+	#endif
 
     int non_zero_values_count = thrust::count_if(segs.data().begin(), segs.data().end(), is_positive());
     device_vector<float> res_values(non_zero_values_count);
@@ -336,47 +338,3 @@ nested_array<float> x24 = nested_array<float>(&x22, x23);
 base_array<float> x25 = sum_lifted(x24);
 return x25;
 }
-
-     #define FLOAT_EQ(x, y) fabs((x) - (y)) < 0.001f
-     void test_sum() {
-       host_vector<int> x5(10, 5);
-       base_array<int> x6(x5);
-       int x7 = x6.sum(monoid(0.f, monoid::OP_PLUS));
-       assert(FLOAT_EQ(x7, 0.f + 5.f * 10.f));
-     }
-
-     int test(device_vector<int>* input) {
-        return input->size();
-      }
-
-    int main() {
-    // init
-    host_vector<int> cols_h(6);
-    cols_h[0] = 0; cols_h[1] = 2; cols_h[2] = 0; cols_h[3] = 1; cols_h[4] = 2; cols_h[5] = 3;
-
-    host_vector<float> vals_h(6);
-    vals_h[0] = 1.f; vals_h[1] = 2.f; vals_h[2] = 3.f; vals_h[3] = 4.f; vals_h[4] = 5.f; vals_h[5] = 6.f;
-
-    host_vector<float> v_h(4);
-    v_h[0] = 1.f; v_h[1] = 2.f; v_h[2] = 3.f; v_h[3] = 4.f;
-
-    host_vector<int> segs_h(3);
-    segs_h[0] = 2; segs_h[1] = 3; segs_h[2] = 1;
-
-    base_array<float> vals(vals_h), v(v_h);
-    base_array<int> cols(cols_h), segs(segs_h);
-    pair_array<int, float> rows(cols, vals);
-    nested_array<pair<int, float> > m(&rows, segs);
-
-           base_array<float> res = fun(pair<nested_array<pair<int, float> >, base_array<float> >(m, v));
-
-      // verify
-      assert(res.length() == segs.length());
-      assert(FLOAT_EQ(res.data()[0], 7.f));
-      assert(FLOAT_EQ(res.data()[1], 26.f));
-      assert(FLOAT_EQ(res.data()[2], 24.f));
-
-      std::cout << "OK!";
-
-          return 0;
-          }

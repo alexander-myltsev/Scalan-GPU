@@ -134,15 +134,6 @@ public class ThrustLib {
     }
     */
 
-    /*
-    @Name("someGlobFun")
-    public native static void someGlobFun();
-    */
-
-    @Name("test")
-    //public native static @ByPtr DeviceVectorIntPointer test(@ByPtr DeviceVectorIntPointer dvp);
-    public native static int test(@ByPtr DeviceVectorIntPointer dvp);
-
     @Name("thrust::make_tuple<int, int>")
     public native static @ByVal TupleIntInt makeTuple(int a, int b);
 

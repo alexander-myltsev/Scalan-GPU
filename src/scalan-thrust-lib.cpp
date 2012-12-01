@@ -25,7 +25,7 @@ using std::cout;
 using std::endl;
 using std::string;
 
-#define DEBUG
+//#define DEBUG
 
 namespace scalan_thrust {
   /*
@@ -289,7 +289,9 @@ namespace scalan_thrust {
            thrust::counting_iterator<int>(0), 
            segs_keys.begin());
 
+  #ifdef DEBUG
 	std::cout << "sum_lifted::seg_keys: "; thrust::copy(segs_keys.begin(), segs_keys.end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
+	#endif
 
     int non_zero_values_count = thrust::count_if(segs.data().begin(), segs.data().end(), is_positive());
     device_vector<float> res_values(non_zero_values_count);

@@ -214,51 +214,6 @@ object GpuGenTest {
         stream.println("return " + quote(lam.y) + ";")
         stream.println("}")
 
-        stream.println( """
-     #define FLOAT_EQ(x, y) fabs((x) - (y)) < 0.001f
-     void test_sum() {
-       host_vector<int> x5(10, 5);
-       base_array<int> x6(x5);
-       int x7 = x6.sum(monoid(0.f, monoid::OP_PLUS));
-       assert(FLOAT_EQ(x7, 0.f + 5.f * 10.f));
-     }
-
-     int test(device_vector<int>* input) {
-        return input->size();
-      }
-
-    int main() {
-    // init
-    host_vector<int> cols_h(6);
-    cols_h[0] = 0; cols_h[1] = 2; cols_h[2] = 0; cols_h[3] = 1; cols_h[4] = 2; cols_h[5] = 3;
-
-    host_vector<float> vals_h(6);
-    vals_h[0] = 1.f; vals_h[1] = 2.f; vals_h[2] = 3.f; vals_h[3] = 4.f; vals_h[4] = 5.f; vals_h[5] = 6.f;
-
-    host_vector<float> v_h(4);
-    v_h[0] = 1.f; v_h[1] = 2.f; v_h[2] = 3.f; v_h[3] = 4.f;
-
-    host_vector<int> segs_h(3);
-    segs_h[0] = 2; segs_h[1] = 3; segs_h[2] = 1;
-
-    base_array<float> vals(vals_h), v(v_h);
-    base_array<int> cols(cols_h), segs(segs_h);
-    pair_array<int, float> rows(cols, vals);
-    nested_array<pair<int, float> > m(&rows, segs);
-
-           base_array<float> res = fun(pair<nested_array<pair<int, float> >, base_array<float> >(m, v));
-
-      // verify
-      assert(res.length() == segs.length());
-      assert(FLOAT_EQ(res.data()[0], 7.f));
-      assert(FLOAT_EQ(res.data()[1], 26.f));
-      assert(FLOAT_EQ(res.data()[2], 24.f));
-
-      std::cout << "OK!";
-
-          return 0;
-          }""")
-
         stream.flush
         val programText = new String(bytesStream.toByteArray)
         //System.out.println(programText)
@@ -324,17 +279,6 @@ object GpuGenTest {
   }
 
   def compileCpp() = {
-    //    runProcess(
-    //      """C:\Java\jdk1.7.0\bin\java -Dfile.encoding=UTF-8 """+
-    //        """-classpath "C:\Java\jdk1.7.0\jre\lib\charsets.jar;C:\Java\jdk1.7.0\jre\lib\deploy.jar;C:\Java\jdk1.7.0\jre\lib\javaws.jar;"""+
-    //        """C:\Java\jdk1.7.0\jre\lib\jce.jar;C:\Java\jdk1.7.0\jre\lib\jsse.jar;C:\Java\jdk1.7.0\jre\lib\management-agent.jar;""" +
-    //        """C:\Java\jdk1.7.0\jre\lib\plugin.jar;C:\Java\jdk1.7.0\jre\lib\resources.jar;C:\Java\jdk1.7.0\jre\lib\rt.jar;C:\Java\jdk1.7.0\jre\lib\ext\dnsns.jar;""" +
-    //        """C:\Java\jdk1.7.0\jre\lib\ext\localedata.jar;C:\Java\jdk1.7.0\jre\lib\ext\sunec.jar;""" +
-    //        """C:\Java\jdk1.7.0\jre\lib\ext\sunjce_provider.jar;C:\Java\jdk1.7.0\jre\lib\ext\sunmscapi.jar;""" +
-    //        """C:\Java\jdk1.7.0\jre\lib\ext\zipfs.jar;D:\phd\Scalan-v2\out\production\Scalan-v2;D:\phd\Scalan-v2\lib\junit-4.10.jar;""" +
-    //        """D:\phd\Scalan-v2\lib\maven-plugin-api-2.0.10.jar;D:\phd\scala-virtualized\build\pack\lib\scala-compiler.jar;D:\phd\scala-virtualized\build\pack\lib\scala-library.jar" """+
-    //        """com.googlecode.javacpp.Builder main.scala.gpugen.ThrustLib -propertyfile D:\phd\Scalan-v2\src\javacpp-thrust-openmp-win-x86_64.properties""")
-
     val javaLibs = List("charsets.jar", "deploy.jar", "javaws.jar", "jce.jar", "jsse.jar", "management-agent.jar",
       "plugin.jar", "resources.jar", "ext\\dnsns.jar", "ext\\localedata.jar", "ext\\sunec.jar",
       "ext\\sunjce_provider.jar", "ext\\sunmscapi.jar", "ext\\zipfs.jar")
