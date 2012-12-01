@@ -2,7 +2,6 @@ package main.scala.gpugen
 
 import scala.virtualization.lms.internal.GraphVizExport
 import java.io.PrintWriter
-import scala.virtualization.lms.GpuArrayOperations
 
 object GraphVizGen {
   val s = new GpuArrayOperations with GraphVizExport {
