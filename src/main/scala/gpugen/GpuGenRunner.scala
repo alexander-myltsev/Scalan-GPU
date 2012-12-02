@@ -51,8 +51,8 @@ object GpuGenRunner {
     stream.println("// ----------------------------------------")
     stream.println()
 
-    findDefinition(l.asInstanceOf[Sym[_]]).get.definition.get match {
-      case lam: Lambda[_, _] =>
+    l match {
+      case Def(lam: Lambda[_, _]) =>
         val tp = lam.y.Elem.manifest.toString match {
           case "scalan.dsl.ArraysBase$PArray[Float]" =>
             "base_array<float>"
@@ -82,6 +82,10 @@ object GpuGenRunner {
     // Program compilation
     compileCpp()
 
+    compiledFun()
+  }
+
+  def compiledFun[B]() = {
     val r: ((seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => seq.PArray[Float] = (x1: (seq.PArray[seq.PArray[(Int, Float)]], seq.PArray[Float])) => {
       import seq._
       x1 match {
