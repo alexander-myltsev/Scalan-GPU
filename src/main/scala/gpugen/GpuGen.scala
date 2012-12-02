@@ -10,7 +10,7 @@ trait GpuGen extends GenericCodegen {
 
   class GenerationFailedException(msg: String) extends Exception(msg)
 
-  //var globDefsArr: Array[TP[_]] = null
+  var globDefsArr: Array[TP[_]] = null
 
   def remap[A](m: Manifest[A]): String = m.toString match {
     case "Int" => "int"
@@ -31,6 +31,10 @@ trait GpuGen extends GenericCodegen {
     rhs match {
       case (c: Const[_]) =>
       //stream.println(quote(s) + " = const(" + c.x + ")")
+
+      case (vpa: VarPA[_]) =>
+        val tp = remap(vpa.a.Elem.manifest)
+        stream.println(tp + " " + quote(s) + " = " + quote(vpa.a) + ";")
 
       case (fst: First[_, _]) =>
         val tp = remap(fst.pair.Elem.manifest.typeArguments(0))

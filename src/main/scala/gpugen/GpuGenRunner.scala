@@ -21,25 +21,23 @@ object GpuGenRunner {
     val segs: PA[(Int, Int)] = segsIdx zip segsLen
     val m: PA[PA[(Int, Float)]] = mkNestedArray(rows, segs)
     val v: PA[Float] = fromArray(Array(1f, 2f, 3f, 4f, 5f))
-    val res = f(m, v)
+    val res: PArray[Float] = f(m, v)
     System.out.println(res)
   }
 
   def compile[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {
     import oGpu._
 
-    //globDefsArr = globalDefs.toArray
+    oGpu.globDefsArr = globalDefs.toArray
 
     val bytesStream = new ByteArrayOutputStream
     val stream = new PrintWriter(bytesStream, true) {
       override def println(s: String) = {
-        //System.out.println(s)
         super.println(s)
-        //System.out.println()
+        //System.out.println(s) // NOTE: Uncomment me for debug
       }
 
       override def print(s: String) = {
-        //System.out.print(s)
         super.print(s)
       }
     }
@@ -51,6 +49,7 @@ object GpuGenRunner {
     stream.println(thrust_lib_code.mkString)
     thrust_lib_code.close
     stream.println("// ----------------------------------------")
+    stream.println()
 
     findDefinition(l.asInstanceOf[Sym[_]]).get.definition.get match {
       case lam: Lambda[_, _] =>

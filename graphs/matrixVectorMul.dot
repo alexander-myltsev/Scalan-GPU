@@ -1,0 +1,99 @@
+digraph G {
+"Sym(29)" [
+label="Sym(29) \n First(var_Sym(27): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]])"
+shape=box
+]
+"var_Sym(27): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]]" -> "Sym(29)"
+"Sym(52)" [
+label="Sym(52) \n FirstPA(var_Sym(31): PArray[Tuple2[Int, Float]])"
+shape=box
+color=blue
+]
+"var_Sym(31): PArray[Tuple2[Int, Float]]" -> "Sym(52)"
+"Sym(55)" [
+label="Sym(55) \n LengthPA(Sym(52))"
+shape=box
+]
+"Sym(52)" -> "Sym(55)"
+"Sym(30)" [
+label="Sym(30) \n Second(var_Sym(27): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]])"
+shape=box
+]
+"var_Sym(27): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]]" -> "Sym(30)"
+"Sym(58)" [
+label="Sym(58) \n IndexPA(Sym(52),var_Sym(56): Int)"
+shape=box
+]
+"Sym(52)" -> "Sym(58)"
+"var_Sym(56): Int" -> "Sym(58)"
+"Sym(61)" [
+label="Sym(61) \n IndexPA(Sym(30),Sym(58))"
+shape=box
+]
+"Sym(30)" -> "Sym(61)"
+"Sym(58)" -> "Sym(61)"
+"Sym(53)" [
+label="Sym(53) \n SecondPA(var_Sym(31): PArray[Tuple2[Int, Float]])"
+shape=box
+color=blue
+]
+"var_Sym(31): PArray[Tuple2[Int, Float]]" -> "Sym(53)"
+"Sym(59)" [
+label="Sym(59) \n IndexPA(Sym(53),var_Sym(56): Int)"
+shape=box
+]
+"Sym(53)" -> "Sym(59)"
+"var_Sym(56): Int" -> "Sym(59)"
+"Sym(62)" [
+label="Sym(62) \n NumericTimes(Sym(61), Sym(59))"
+shape=box
+]
+"Sym(61)" -> "Sym(62)"
+"Sym(59)" -> "Sym(62)"
+"Sym(57)" [
+label="Sym(57) \n Lambda(var_Sym(56): Int,Sym(62))"
+shape=box
+color=red
+]
+"var_Sym(56): Int" -> "Sym(57)"
+"Sym(62)" -> "Sym(57)"
+"Sym(63)" [
+label="Sym(63) \n ArrayTabulate(Sym(55),Sym(57))"
+shape=box
+color=green
+]
+"Sym(55)" -> "Sym(63)"
+"Sym(57)" -> "Sym(63)"
+"Sym(64)" [
+label="Sym(64) \n BaseArray(Sym(63))"
+shape=box
+color=blue
+]
+"Sym(63)" -> "Sym(64)"
+"Sym(65)" [
+label="Sym(65) \n SumPA(Sym(64),[Monoid: '+' | 0.0])"
+shape=box
+]
+"Sym(64)" -> "Sym(65)"
+"Sym(32)" [
+label="Sym(32) \n Lambda(var_Sym(31): PArray[Tuple2[Int, Float]],Sym(65))"
+shape=box
+color=red
+]
+"var_Sym(31): PArray[Tuple2[Int, Float]]" -> "Sym(32)"
+"Sym(65)" -> "Sym(32)"
+"Sym(66)" [
+label="Sym(66) \n MapPA(Sym(29),Sym(32))"
+shape=box
+color=blue
+]
+"Sym(29)" -> "Sym(66)"
+"Sym(32)" -> "Sym(66)"
+"Sym(28)" [
+label="Sym(28) \n Lambda(var_Sym(27): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]],Sym(66))"
+shape=box
+color=red
+]
+"var_Sym(27): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]]" -> "Sym(28)"
+"Sym(66)" -> "Sym(28)"
+}

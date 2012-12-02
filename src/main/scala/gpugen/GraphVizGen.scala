@@ -20,5 +20,6 @@ object GraphVizGen {
     import s._
     val prefix = "graphs/"
     emitDepGraph(smvm, prefix + "smvm.dot", false)
+    emitDepGraph(matrixVectorMul, prefix + "matrixVectorMul.dot", false)
   }
 }

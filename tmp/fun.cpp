@@ -325,16 +325,18 @@ using scalan_thrust::sum_lifted;
 
 
 // ----------------------------------------
+
 base_array<float> fun(const pair<nested_array<pair<int, float> >, base_array<float> >& x14) {
 base_array<float> x17 = x14.snd();
+base_array<float> x20 = x17;
 nested_array<pair<int, float> > x16 = x14.fst();
 pair_array<int, float> x18 = x16.values();
 base_array<int> x19 = x18.first();
-base_array<float> x20 = x17.back_permute(x19);
-base_array<float> x21 = x18.second();
-base_array<float> x22 = binop_array(x20, x21);
-base_array<int> x23 = x16.segments();
-nested_array<float> x24 = nested_array<float>(&x22, x23);
-base_array<float> x25 = sum_lifted(x24);
-return x25;
+base_array<float> x21 = x20.back_permute(x19);
+base_array<float> x22 = x18.second();
+base_array<float> x23 = binop_array(x21, x22);
+base_array<int> x24 = x16.segments();
+nested_array<float> x25 = nested_array<float>(&x23, x24);
+base_array<float> x26 = sum_lifted(x25);
+return x26;
 }
