@@ -19,13 +19,19 @@ trait Samples extends Scalan {
   type FrontierNodes = PArray[Int]
   type BFSTree = PArray[Int]
 
-  val any = (arr: Rep[PArray[Boolean]]) => (arr filter (x => x)).length > 0
+  def id[T](x: Rep[T]) = x
+  def isEmpty[T](arr: Rep[PArray[T]]) = arr.length == 0
+  def any(arr: Rep[PArray[Boolean]]) = !isEmpty(arr filter id)
+  def indexPA[T:Elem](arr: Rep[PArray[T]], idxs: Rep[PArray[Int]]) = idxs map {case i => arr.index(i)}
 
   lazy val breadthFirstSearch = mkLambda((input: Rep[(((Graph, FrontierNodes), BFSTree), Int)]) => {
     val Pair(Pair(Pair(graph, frontierNodes), bfsTree), endNode) = input
-    if (frontierNodes.length == 0 || any(frontierNodes map (x => x == endNode)))
-      bfsTree
-    else
-      bfsTree
+    (frontierNodes.length == 0 || any(frontierNodes map (x => x == endNode))) match {
+      case true => bfsTree
+      case false =>
+        val neighbors = indexPA(graph, frontierNodes)
+        val next = frontierNodes zip neighbors
+        !!!("Not implemented")
+    }
   })
 }
