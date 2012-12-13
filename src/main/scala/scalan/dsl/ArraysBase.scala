@@ -82,7 +82,7 @@ trait ArraysBase extends ScalanBase
           (implicit eb:Elem[B], ec:Elem[C], etb: Elem[(T,B)]): PA[C]
 
     def backPermute(idxs: PA[Int]): PA[T]
-    def permute(idxs: PA[Int]): PA[T]
+    def permute(idxs: PA[Int]): PA[T] // res[idxs[i]] = this[i]
 
     def slice(start:IntRep, len:IntRep): PA[T]
     def scan(implicit s:Monoid[T]): PA[T]                     // (1,2,3,4,5) -> (0,1,3,6,10)

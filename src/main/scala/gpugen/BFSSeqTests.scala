@@ -18,8 +18,19 @@ object BFSSeqTests {
     val segsLens = fromArray(Array(1, 3, 2, 1, 1))
     val data = fromArray(Array(1, 0, 2, 3, 1, 4, 1, 2))
     val graph = mkNestedArray(data, segsIdxs zip segsLens)
+
+    // --- Input 1 ---
     val frontierNodes = fromArray(Array(0))
     val bfsTree = fromArray(Array(0,-1,-1,-1,-1))
+    // assert res equals to (4, 2, 1, 0)
+    // ---
+
+    // --- Input 2 ---
+    //val frontierNodes = fromArray(Array(1))
+    //val bfsTree = fromArray(Array(-1,1,-1,-1,-1))
+    // assert res equals to (4, 2, 1)
+    // ---
+
     val endNode = 4
 
     val bfsTreeRes = breadthFirstSearch((((graph, frontierNodes), bfsTree), endNode))

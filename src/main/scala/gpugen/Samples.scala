@@ -37,23 +37,17 @@ trait Samples extends Scalan {
   lazy val breadthFirstSearch: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode)) => BFSTree] =
     mkLambda((input: Rep[(((Graph, FrontierNodes), BFSTree), GraphNode)]) => {
       val Pair(Pair(Pair(graph, frontierNodes), bfsTree), endNode) = input
-      (frontierNodes.length == 0 || any(frontierNodes map (x => x == endNode))) match {
+      (isEmpty(frontierNodes) || any(frontierNodes map (x => x == endNode))) match {
         case true => bfsTree
         case false =>
-          val neighbors: PA[PArray[(GraphNode, GraphNode)]] =
-            frontierNodes map {
-              case idx => graph.index(idx) map {
-                case neighNode => (neighNode, idx)
-              }
-            } // TODO: Replace PA indexing
+          val neighbors: PA[PArray[(GraphNode, GraphNode)]] = {
+            val t = graph.backPermute(frontierNodes) zip frontierNodes
+            t map {case Pair(nds, idx) => nds map {case nd => (nd, idx)}}
+          }
           val next1: PA[(GraphNode, GraphNode)] = neighbors flatMap id
           val next2: PA[(GraphNode, GraphNode)] =
-            firstPA((next1 zip (firstPA(next1) map {
-              case neighNd => bfsTree.index(neighNd)
-            })) // TODO: Replace PA indexing
-              filter {
-              case Pair(a, b) => b == -1
-            })
+            firstPA((next1 zip (bfsTree.backPermute(firstPA(next1))))
+              filter { case Pair(a, b) => b == -1 })
 
           // NESL '<-' function
           val bfsTree1: PA[GraphNode] = {
@@ -66,12 +60,8 @@ trait Samples extends Scalan {
 
           val next3: PA[GraphNode] =
             firstPA(firstPA(
-              next2 zip (firstPA(next2) map {
-                case neighNd => bfsTree1.index(neighNd)
-              }) // TODO: Replace PA indexing
-                filter {
-                case Pair(Pair(ne, n), p) => n == p
-              }))
+              next2 zip (bfsTree1.backPermute(firstPA(next2)))
+                filter { case Pair(Pair(ne, n), p) => n == p }))
 
           val input1: Rep[(((Graph, FrontierNodes), BFSTree), GraphNode)] = Pair(Pair(Pair(graph, next3), bfsTree1), endNode)
           breadthFirstSearch(input1)
