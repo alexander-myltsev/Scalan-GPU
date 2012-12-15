@@ -99,6 +99,7 @@ trait ArraysBase extends ScalanBase
     def flagSplit  (flags: PA[Boolean]): Rep[(PArray[T], PArray[T])]         // length(this) == length(flags) == (length(A) + length(B))
 
     def ++(that: PA[T])(implicit epa:Elem[PArray[T]]): PA[T]
+    def <--(vals: PA[(Int, T)]): PA[T]
     def toDoc: Document = text(toString)
 
     implicit val elem: Elem[T]

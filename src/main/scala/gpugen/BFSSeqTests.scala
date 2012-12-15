@@ -20,14 +20,14 @@ object BFSSeqTests {
     val graph = mkNestedArray(data, segsIdxs zip segsLens)
 
     // --- Input 1 ---
-    val frontierNodes = fromArray(Array(0))
-    val bfsTree = fromArray(Array(0,-1,-1,-1,-1))
+//    val frontierNodes = fromArray(Array(0))
+//    val bfsTree = fromArray(Array(0,-1,-1,-1,-1))
     // assert res equals to (4, 2, 1, 0)
     // ---
 
     // --- Input 2 ---
-    //val frontierNodes = fromArray(Array(1))
-    //val bfsTree = fromArray(Array(-1,1,-1,-1,-1))
+    val frontierNodes = fromArray(Array(1))
+    val bfsTree = fromArray(Array(-1,1,-1,-1,-1))
     // assert res equals to (4, 2, 1)
     // ---
 

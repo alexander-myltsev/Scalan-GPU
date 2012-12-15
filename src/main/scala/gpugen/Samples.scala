@@ -49,14 +49,7 @@ trait Samples extends Scalan {
             firstPA((next1 zip (bfsTree.backPermute(firstPA(next1))))
               filter { case Pair(a, b) => b == -1 })
 
-          // NESL '<-' function
-          val bfsTree1: PA[GraphNode] = {
-            var tempArr: Array[Int] = (bfsTree.toArray).asInstanceOf[Array[Int]]
-            next2.toArray.asInstanceOf[Array[(Int, Int)]] map {
-              case ((a: Int), (b: Int)) => tempArr(a) = b
-            }
-            fromArray(tempArr)
-          }
+          val bfsTree1: PA[GraphNode] = bfsTree <-- next2
 
           val next3: PA[GraphNode] =
             firstPA(firstPA(

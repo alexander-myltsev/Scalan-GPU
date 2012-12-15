@@ -295,6 +295,16 @@ trait SeqImplementation extends SeqImplBase {
         else          { fr(fi) = this(i); fi += 1 }
       (SeqStdArray(tr), SeqStdArray(fr))
     }
+
+    def <--(vals: PA[(Int, T)]): PA[T] = {
+      val res = arr.clone()
+      for (i <- 0 until vals.length) {
+        val Pair(idx, v) = vals(i)
+        res(idx) = v
+      }
+      SeqStdArray(res)
+    }
+
     override def toString = arr.mkString("(",", ",")")
   }
 
@@ -326,6 +336,8 @@ trait SeqImplementation extends SeqImplBase {
       val (bt,bf) = b.flagSplit(flags)
       (SeqPairArray(at,bt), SeqPairArray(af,bf))
     }
+
+    def <--(vals: PA[(Int, (A, B))]): PA[(A, B)] = ???
   }
 
   case class SeqSumArray[A, B](val flags: PA[Boolean],  val a: PA[A], val b: PA[B])
@@ -392,6 +404,8 @@ trait SeqImplementation extends SeqImplBase {
       val first = indices(0)
       arr.slice(first, len)
     }
+
+    def <--(vals: PA[(Int, (A|B))]): PA[(A|B)] = ???
   }
 
 
@@ -439,6 +453,8 @@ trait SeqImplementation extends SeqImplBase {
       val arrFalse = posFalse.zip(lensFalse) map {case (p,l) => this.arr.slice(p,l)}
       (arrTrue, arrFalse)
     }
+
+    def <--(vals: PA[(Int, PArray[A])]): PA[PArray[A]] = ???
   }
 
   case class SeqUnitArray(val len: Int) extends UnitArray with SeqPArray[Unit] {
@@ -458,5 +474,7 @@ trait SeqImplementation extends SeqImplBase {
       val truecount = flags.map((b:Boolean) => if (b) 1 else 0).sum
       (SeqUnitArray(truecount), SeqUnitArray(flags.length - truecount))
     }
+
+    def <--(vals: PA[(Int, Unit)]): PA[Unit] = ???
   }
 }
