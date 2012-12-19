@@ -1,8 +1,4 @@
 digraph G {
-"Sym(4)" [
-label="Sym(4) \n Const(0.0)"
-shape=box
-]
 "Sym(17)" [
 label="Sym(17) \n Second(var_Sym(14): Tuple2[PArray[PArray[Tuple2[Int, Float]]], PArray[Float]])"
 shape=box
@@ -45,12 +41,10 @@ color=blue
 ]
 "Sym(18)" -> "Sym(22)"
 "Sym(23)" [
-label="Sym(23) \n ExpBinopArray(NumericPlus(Sym(4), Sym(4)),Sym(21),Sym(22))"
+label="Sym(23) \n ExpBinopArray(NumericPlus(null, null),Sym(21),Sym(22))"
 shape=box
 color=blue
 ]
-"Sym(4)" -> "Sym(23)"
-"Sym(4)" -> "Sym(23)"
 "Sym(21)" -> "Sym(23)"
 "Sym(22)" -> "Sym(23)"
 "Sym(24)" [

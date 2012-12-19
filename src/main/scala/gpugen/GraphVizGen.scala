@@ -21,5 +21,6 @@ object GraphVizGen {
     val prefix = "graphs/"
     emitDepGraph(smvm, prefix + "smvm.dot", false)
     emitDepGraph(matrixVectorMul, prefix + "matrixVectorMul.dot", false)
+    emitDepGraph(breadthFirstSearch, prefix + "bfs.dot", false)
   }
 }

@@ -67,7 +67,7 @@ trait Samples extends Scalan {
       val next: Rep[GraphNode] = bfsTree.index(node)
       val b: Rep[Boolean] = next == node
       (next == node) match {
-        case true => tabulate(1)(x => node)
+        case true => tabulate(1)(x => node) // TO replicate
         case false => tabulate(1)(x => node) ++ treePath(next, bfsTree)
       }
     })

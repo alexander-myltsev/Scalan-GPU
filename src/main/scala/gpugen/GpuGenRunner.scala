@@ -7,7 +7,7 @@ object GpuGenRunner {
   val oGpu = new GpuArrayOperations with GpuGen
   val seq = new ScalanSequential {}
 
-  def main(args: Array[String]): Unit = {
+  def test_smvm() = {
     import seq._
 
     val f = compile[((oGpu.PArray[oGpu.PArray[(Int, Float)]], oGpu.PArray[Float])) => oGpu.PArray[Float],
@@ -23,6 +23,15 @@ object GpuGenRunner {
     val v: PA[Float] = fromArray(Array(1f, 2f, 3f, 4f, 5f))
     val res: PArray[Float] = f(m, v)
     System.out.println(res)
+  }
+
+  def test_bfs() = {
+
+  }
+
+  def main(args: Array[String]): Unit = {
+    //test_smvm()
+    test_bfs()
   }
 
   def compile[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {

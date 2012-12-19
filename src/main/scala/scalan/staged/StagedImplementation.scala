@@ -327,6 +327,8 @@ trait StagedImplementation extends StagedImplBase
     def flagSplit(flags: PA[Boolean]) = FlagSplit(this, flags)
     override def flagCombine(ifFalse: PA[A], flags: PA[Boolean]) = FlagCombine(this, ifFalse, flags)
     override def backPermute(idxs: PA[Int]): PA[A] = BackPermute(this, idxs)
+
+    def <--(vals: PA[(Int, A)]): PA[A] = WritePA(this, vals)
   }
 
   case class ExpStdArray[T](arr: Rep[Array[T]])(implicit  et: Elem[T])
@@ -379,6 +381,7 @@ trait StagedImplementation extends StagedImplBase
       (mkUnitArray(truecount), mkUnitArray(flags.length - truecount))
     }
     override def backPermute(idxs: PA[Int]): PA[Unit] = ExpUnitArray(idxs.length)
+
     override def toString = "UnitArray(" + len.toString + ")"
   }
 
@@ -567,6 +570,7 @@ trait StagedImplementation extends StagedImplBase
       //val segs = segments backPermute idxs
       //arr.sliceSegments(segs)
     }
+
     override def toString = "NArray(" + arr.toString + "," + segments.toString + ")"
   }
 
@@ -669,6 +673,9 @@ trait StagedImplementation extends StagedImplBase
   case class ScanPA[A:Elem](xs: PA[A], implicit val m: Monoid[A]) extends ExpStubArray[A]
   case class ToArray[A](arr: PA[A])(implicit val eA: Elem[A]) extends ArrayDef[A]
 
+  case class WritePA[A:Elem](a: PA[A], vals: PA[(Int, A)]) extends ExpStubArray[A] {
+    //def arr = this
+  }
   // generates len elements: x1 = m.zero, x2 = x1 + step, x3 = x2 + step, ...
   case class GeneratePA[A:Elem](len: Rep[Int], step: Rep[A], implicit val m: Monoid[A]) extends ExpStubArray[A] {
     //def arr = this
