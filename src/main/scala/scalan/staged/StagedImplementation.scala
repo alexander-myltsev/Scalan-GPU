@@ -329,6 +329,8 @@ trait StagedImplementation extends StagedImplBase
     override def backPermute(idxs: PA[Int]): PA[A] = BackPermute(this, idxs)
 
     def <--(vals: PA[(Int, A)]): PA[A] = WritePA(this, vals)
+    def |+| (that: PA[A]) (implicit epa:Elem[PArray[A]]): PA[A] =
+      ExpBinopArray(NumericPlus[A](null, null, null), this, that)
   }
 
   case class ExpStdArray[T](arr: Rep[Array[T]])(implicit  et: Elem[T])

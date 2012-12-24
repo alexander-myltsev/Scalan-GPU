@@ -246,6 +246,9 @@ trait SeqImplementation extends SeqImplBase {
     }
 
     def partition(flags: PA[Boolean]): PA[PArray[T]] = ???
+
+    def |+| (that: PA[T]) (implicit epa:Elem[PArray[T]]): PA[T] = ???
+    def <--(vals: PA[(Int, T)]): PA[T] = ???
   }
 
   case class SeqStdArray[T](arr: Rep[Array[T]])(implicit  t: Elem[T])
@@ -296,7 +299,7 @@ trait SeqImplementation extends SeqImplBase {
       (SeqStdArray(tr), SeqStdArray(fr))
     }
 
-    def <--(vals: PA[(Int, T)]): PA[T] = {
+    override def <--(vals: PA[(Int, T)]): PA[T] = {
       val res = arr.clone()
       for (i <- 0 until vals.length) {
         val Pair(idx, v) = vals(i)
@@ -337,7 +340,7 @@ trait SeqImplementation extends SeqImplBase {
       (SeqPairArray(at,bt), SeqPairArray(af,bf))
     }
 
-    def <--(vals: PA[(Int, (A, B))]): PA[(A, B)] = ???
+    //def <--(vals: PA[(Int, (A, B))]): PA[(A, B)] = ???
   }
 
   case class SeqSumArray[A, B](val flags: PA[Boolean],  val a: PA[A], val b: PA[B])
@@ -405,7 +408,7 @@ trait SeqImplementation extends SeqImplBase {
       arr.slice(first, len)
     }
 
-    def <--(vals: PA[(Int, (A|B))]): PA[(A|B)] = ???
+    //def <--(vals: PA[(Int, (A|B))]): PA[(A|B)] = ???
   }
 
 
@@ -454,7 +457,7 @@ trait SeqImplementation extends SeqImplBase {
       (arrTrue, arrFalse)
     }
 
-    def <--(vals: PA[(Int, PArray[A])]): PA[PArray[A]] = ???
+    //def <--(vals: PA[(Int, PArray[A])]): PA[PArray[A]] = ???
   }
 
   case class SeqUnitArray(val len: Int) extends UnitArray with SeqPArray[Unit] {
@@ -475,6 +478,6 @@ trait SeqImplementation extends SeqImplBase {
       (SeqUnitArray(truecount), SeqUnitArray(flags.length - truecount))
     }
 
-    def <--(vals: PA[(Int, Unit)]): PA[Unit] = ???
+    //def <--(vals: PA[(Int, Unit)]): PA[Unit] = ???
   }
 }

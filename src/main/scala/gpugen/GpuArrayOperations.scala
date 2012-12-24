@@ -11,15 +11,25 @@ trait GpuArrayOperations extends ScalanStaged {
 
   def sumLifted[B](s: PA[PArray[B]])(implicit e: Elem[B], m: Monoid[B]) = SumLiftedPA(s, m)
 
-  def binopArr[A](lhs: PA[A], rhs: PA[A])(implicit e: Elem[A]) =
-    ExpBinopArray(NumericPlus[A](null, null, null), lhs, rhs)
+//  def binopArr[A](lhs: PA[A], rhs: PA[A])(implicit e: Elem[A]) =
+//    ExpBinopArray(NumericPlus[A](null, null, null), lhs, rhs)
+
+//  lazy val smvm = mkLambda((input: Rep[(Matrix, Vector)]) => {
+//    val Pair(m, v) = input
+//    val naVals = m.values
+//    val bp = v.backPermute(naVals.fst)
+//    val ba = binopArr(bp, naVals.snd)
+//    val res: PA[Float] = sumLifted(mkNestedArray(ba, m.segments))
+//    res
+//  })
 
   lazy val smvm = mkLambda((input: Rep[(Matrix, Vector)]) => {
     val Pair(m, v) = input
-    val naVals = m.values
-    val bp = v.backPermute(naVals.fst)
-    val ba = binopArr(bp, naVals.snd)
-    val res: PA[Float] = sumLifted(mkNestedArray(ba, m.segments))
+    val naVals: PA[(Int, Float)] = m.values
+    val bp: PA[Float] = v.backPermute(naVals.fst)
+    val ba: PA[Float] = bp |+| naVals.snd
+    val nArr1: PA[PArray[Float]] = mkNestedArray(ba, m.segments)
+    val res: PA[Float] = sumLifted(nArr1)
     res
   })
 
@@ -60,6 +70,15 @@ trait GpuArrayOperations extends ScalanStaged {
   def secondPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = arr map {
     case Pair(a, b) => b
   }
+
+//  zs = xs zip ys map { (x,y) => x + y - 10 }
+//  val zs = xs |+| ys |-| replicate(xs.length, 10)
+//
+//  ys = xs filter { case x => x != 0 }
+//  val ys = (xs flagSplit (xs |!=| replicate(xs.length, 0)))._1
+//
+//  xs.expandBy(ns)  //  xs.length == ns.length
+//  xs.nestBy(segments)      // ExpNestedArray(xs, segments)
 
   lazy val breadthFirstSearch =
     letrec((bfs: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode)) => BFSTree]) =>

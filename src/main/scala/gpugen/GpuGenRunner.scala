@@ -23,6 +23,9 @@ object GpuGenRunner {
     val v: PA[Float] = fromArray(Array(1f, 2f, 3f, 4f, 5f))
     val res: PArray[Float] = f(m, v)
     System.out.println(res)
+    assert(math.abs(res.index(0) - 7f) < 0.01f)
+    assert(math.abs(res.index(1) - 26f) < 0.01f)
+    assert(math.abs(res.index(2) - 24f) < 0.01f)
   }
 
   def test_bfs() = {
@@ -30,8 +33,8 @@ object GpuGenRunner {
   }
 
   def main(args: Array[String]): Unit = {
-    //test_smvm()
-    test_bfs()
+    test_smvm()
+    //test_bfs()
   }
 
   def compile[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {
