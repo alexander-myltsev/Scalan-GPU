@@ -57,18 +57,13 @@ trait GpuArrayOperations extends ScalanStaged {
 
   def id[T](x: Rep[T]) = x
 
+  def pairFst[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(r, _) => r}
+  def pairSnd[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(_, r) => r}
+
   def isEmpty[T](arr: Rep[PArray[T]]) = arr.length == 0
-
-  def any(arr: Rep[PArray[Boolean]]) = !isEmpty(arr filter id)
-
-  //def indexPA[T:Elem](arr: Rep[PArray[T]], idxs: Rep[PArray[Int]]) = idxs map {case i => arr.index(i)}
-  def firstPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = arr map {
-    case Pair(a, b) => a
-  }
-
-  def secondPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = arr map {
-    case Pair(a, b) => b
-  }
+  def any(arr: Rep[PArray[Boolean]]) = !isEmpty(pairFst(arr flagSplit arr))
+  def firstPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = FirstPA(arr)
+  def secondPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = SecondPA(arr)
 
 //  zs = xs zip ys map { (x,y) => x + y - 10 }
 //  val zs = xs |+| ys |-| replicate(xs.length, 10)
@@ -85,29 +80,20 @@ trait GpuArrayOperations extends ScalanStaged {
       val Pair(Pair(Pair(graph, frontierNodes), bfsTree), endNode) = input
       if (isEmpty(frontierNodes) || any(frontierNodes map (x => x == endNode))) bfsTree
       else {
-        val neighbors: PA[PArray[(GraphNode, GraphNode)]] = {
-          val t = graph.backPermute(frontierNodes) zip frontierNodes
-          t map {
-            case Pair(nds, idx) => nds map {
-              case nd => (nd, idx)
-            }
-          }
+        val neighbors: PA[PArray[GraphNode]] = graph.backPermute(frontierNodes)
+        val next1: PA[(GraphNode, GraphNode)] = (neighbors flatMap id) zip (frontierNodes.expandBy(neighbors))
+        val next2: PA[(GraphNode, GraphNode)] = {
+          val t1 = bfsTree.backPermute(firstPA(next1))
+          val t2 = t1 |==| replicate(t1.length, -1)
+          pairFst(next1 flagSplit t2)
         }
-        val next1: PA[(GraphNode, GraphNode)] = neighbors flatMap id
-        val next2: PA[(GraphNode, GraphNode)] =
-          firstPA((next1 zip (bfsTree.backPermute(firstPA(next1))))
-            filter {
-            case Pair(a, b) => b == -1
-          })
 
         val bfsTree1: PA[GraphNode] = bfsTree <-- next2
 
-        val next3: PA[GraphNode] =
-          firstPA(firstPA(
-            next2 zip (bfsTree1.backPermute(firstPA(next2)))
-              filter {
-              case Pair(Pair(ne, n), p) => n == p
-            }))
+        val next3: PA[GraphNode] = {
+          val t1 = secondPA(next2) |==| (bfsTree1.backPermute(firstPA(next2)))
+          pairFst(firstPA(next2) flagSplit t1)
+        }
 
         bfsTree1
       }

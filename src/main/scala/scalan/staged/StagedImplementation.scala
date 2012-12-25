@@ -331,7 +331,8 @@ trait StagedImplementation extends StagedImplBase
     def <--(vals: PA[(Int, A)]): PA[A] = WritePA(this, vals)
     def |+| (that: PA[A]) (implicit epa:Elem[PArray[A]]): PA[A] =
       ExpBinopArray(NumericPlus[A](null, null, null), this, that)
-    def |==| (that: PA[A]) (implicit epa:Elem[PArray[A]]): PA[Boolean] = ???
+    def |==| (that: PA[A]) (implicit epa:Elem[PArray[A]]): PA[Boolean] =
+      ExpBinopArrayEquals(this, that) // TODO: should be ExpBinopArray of [A, A, Boolean]
   }
 
   case class ExpStdArray[T](arr: Rep[Array[T]])(implicit  et: Elem[T])
@@ -676,9 +677,10 @@ trait StagedImplementation extends StagedImplBase
   case class ScanPA[A:Elem](xs: PA[A], implicit val m: Monoid[A]) extends ExpStubArray[A]
   case class ToArray[A](arr: PA[A])(implicit val eA: Elem[A]) extends ArrayDef[A]
 
-  case class WritePA[A:Elem](a: PA[A], vals: PA[(Int, A)]) extends ExpStubArray[A] {
-    //def arr = this
-  }
+  case class ExpBinopArrayEquals[A:Elem](a: PA[A], b: PA[A]) extends ExpStubArray[Boolean]
+
+  case class WritePA[A:Elem](a: PA[A], vals: PA[(Int, A)]) extends ExpStubArray[A]
+
   // generates len elements: x1 = m.zero, x2 = x1 + step, x3 = x2 + step, ...
   case class GeneratePA[A:Elem](len: Rep[Int], step: Rep[A], implicit val m: Monoid[A]) extends ExpStubArray[A] {
     //def arr = this

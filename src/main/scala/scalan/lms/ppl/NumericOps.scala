@@ -42,6 +42,10 @@ trait NumericOpsExp extends NumericOps with BaseExp { self: ArraysBase =>
     def copyWith(l: Rep[T], r: Rep[T]) = this.copy(lhs = l, rhs = r)
     override def name = "*"
   }
+  case class NumericEquals[T](lhs: Exp[T], rhs: Exp[T], implicit val n: Numeric[T]) extends NumericBinOp[T](n) {
+    def copyWith(l: Rep[T], r: Rep[T]) = this.copy(lhs = l, rhs = r)
+    override def name = "=="
+  }
 
   case class NumericToFloat[T](lhs: Exp[T], implicit val n: Numeric[T]) extends Def[Float]
 
