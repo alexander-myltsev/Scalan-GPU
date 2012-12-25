@@ -102,6 +102,7 @@ trait ArraysBase extends ScalanBase
 
     def <-- (vals: PA[(Int, T)]): PA[T]
     def |+| (that: PA[T]) (implicit epa:Elem[PArray[T]]): PA[T]
+    def |==| (that: PA[T]) (implicit epa:Elem[PArray[T]]): PA[Boolean]
 
     def toDoc: Document = text(toString)
 

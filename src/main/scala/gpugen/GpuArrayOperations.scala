@@ -28,8 +28,7 @@ trait GpuArrayOperations extends ScalanStaged {
     val naVals: PA[(Int, Float)] = m.values
     val bp: PA[Float] = v.backPermute(naVals.fst)
     val ba: PA[Float] = bp |+| naVals.snd
-    val nArr1: PA[PArray[Float]] = mkNestedArray(ba, m.segments)
-    val res: PA[Float] = sumLifted(nArr1)
+    val res: PA[Float] = sumLifted(mkNestedArray(ba, m.segments))
     res
   })
 

@@ -331,6 +331,7 @@ trait StagedImplementation extends StagedImplBase
     def <--(vals: PA[(Int, A)]): PA[A] = WritePA(this, vals)
     def |+| (that: PA[A]) (implicit epa:Elem[PArray[A]]): PA[A] =
       ExpBinopArray(NumericPlus[A](null, null, null), this, that)
+    def |==| (that: PA[A]) (implicit epa:Elem[PArray[A]]): PA[Boolean] = ???
   }
 
   case class ExpStdArray[T](arr: Rep[Array[T]])(implicit  et: Elem[T])

@@ -246,8 +246,11 @@ trait SeqImplementation extends SeqImplBase {
     }
 
     def partition(flags: PA[Boolean]): PA[PArray[T]] = ???
-
+    def |==| (that: PA[T]) (implicit epa:Elem[PArray[T]]): PA[Boolean] = {
+      (this zip that) map {case Pair(a, b) => a == b}
+    }
     def |+| (that: PA[T]) (implicit epa:Elem[PArray[T]]): PA[T] = ???
+
     def <--(vals: PA[(Int, T)]): PA[T] = ???
   }
 
