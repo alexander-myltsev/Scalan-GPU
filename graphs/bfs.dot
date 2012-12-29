@@ -29,228 +29,185 @@ shape=box
 ]
 "Sym(76)" -> "Sym(77)"
 "Sym(1)" -> "Sym(77)"
+"Sym(79)" [
+label="Sym(79) \n VarPA(Sym(75))"
+shape=box
+color=blue
+]
+"Sym(75)" -> "Sym(79)"
 "Sym(71)" [
 label="Sym(71) \n Second(var_Sym(68): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])"
 shape=box
 ]
 "var_Sym(68): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int]" -> "Sym(71)"
-"Sym(80)" [
-label="Sym(80) \n Equal(var_Sym(78): Int,Sym(71))"
-shape=box
-]
-"var_Sym(78): Int" -> "Sym(80)"
-"Sym(71)" -> "Sym(80)"
-"Sym(79)" [
-label="Sym(79) \n Lambda(var_Sym(78): Int,Sym(80))"
-shape=box
-color=red
-]
-"var_Sym(78): Int" -> "Sym(79)"
-"Sym(80)" -> "Sym(79)"
-"Sym(81)" [
-label="Sym(81) \n MapPA(Sym(75),Sym(79))"
+"Sym(78)" [
+label="Sym(78) \n ReplicatePA(Sym(76),Sym(71))"
 shape=box
 color=blue
 ]
-"Sym(75)" -> "Sym(81)"
-"Sym(79)" -> "Sym(81)"
+"Sym(76)" -> "Sym(78)"
+"Sym(71)" -> "Sym(78)"
+"Sym(80)" [
+label="Sym(80) \n ExpBinopArrayEquals(Sym(79),Sym(78))"
+shape=box
+color=blue
+]
+"Sym(79)" -> "Sym(80)"
+"Sym(78)" -> "Sym(80)"
+"Sym(84)" [
+label="Sym(84) \n FlagSplit(Sym(80),Sym(80))"
+shape=box
+]
+"Sym(80)" -> "Sym(84)"
+"Sym(80)" -> "Sym(84)"
 "Sym(85)" [
-label="Sym(85) \n FlagSplit(Sym(81),Sym(81))"
+label="Sym(85) \n First(Sym(84))"
 shape=box
 ]
-"Sym(81)" -> "Sym(85)"
-"Sym(81)" -> "Sym(85)"
-"Sym(86)" [
-label="Sym(86) \n First(Sym(85))"
+"Sym(84)" -> "Sym(85)"
+"Sym(87)" [
+label="Sym(87) \n LengthPA(Sym(85))"
 shape=box
 ]
-"Sym(85)" -> "Sym(86)"
+"Sym(85)" -> "Sym(87)"
 "Sym(88)" [
-label="Sym(88) \n LengthPA(Sym(86))"
+label="Sym(88) \n Equal(Sym(87),Sym(1))"
 shape=box
 ]
-"Sym(86)" -> "Sym(88)"
+"Sym(87)" -> "Sym(88)"
+"Sym(1)" -> "Sym(88)"
 "Sym(89)" [
-label="Sym(89) \n Equal(Sym(88),Sym(1))"
+label="Sym(89) \n Not(Sym(88))"
 shape=box
 ]
 "Sym(88)" -> "Sym(89)"
-"Sym(1)" -> "Sym(89)"
 "Sym(90)" [
-label="Sym(90) \n Not(Sym(89))"
+label="Sym(90) \n Or(Sym(77),Sym(89))"
 shape=box
 ]
+"Sym(77)" -> "Sym(90)"
 "Sym(89)" -> "Sym(90)"
-"Sym(91)" [
-label="Sym(91) \n Or(Sym(77),Sym(90))"
-shape=box
-]
-"Sym(77)" -> "Sym(91)"
-"Sym(90)" -> "Sym(91)"
 "Sym(73)" [
 label="Sym(73) \n Second(Sym(70))"
 shape=box
 ]
 "Sym(70)" -> "Sym(73)"
-"Sym(105)" [
-label="Sym(105) \n VarPA(Sym(73))"
+"Sym(96)" [
+label="Sym(96) \n VarPA(Sym(73))"
 shape=box
 color=blue
 ]
-"Sym(73)" -> "Sym(105)"
+"Sym(73)" -> "Sym(96)"
 "Sym(74)" [
 label="Sym(74) \n First(Sym(72))"
 shape=box
 ]
 "Sym(72)" -> "Sym(74)"
-"Sym(92)" [
-label="Sym(92) \n VarPA(Sym(74))"
+"Sym(91)" [
+label="Sym(91) \n VarPA(Sym(74))"
 shape=box
 color=blue
 ]
-"Sym(74)" -> "Sym(92)"
+"Sym(74)" -> "Sym(91)"
+"Sym(92)" [
+label="Sym(92) \n BackPermute(Sym(91),Sym(75))"
+shape=box
+color=blue
+]
+"Sym(91)" -> "Sym(92)"
+"Sym(75)" -> "Sym(92)"
 "Sym(93)" [
-label="Sym(93) \n BackPermute(Sym(92),Sym(75))"
+label="Sym(93) \n NestedArrayValues(Sym(92))"
 shape=box
 color=blue
 ]
 "Sym(92)" -> "Sym(93)"
-"Sym(75)" -> "Sym(93)"
-"Sym(94)" [
-label="Sym(94) \n LengthPA(Sym(93))"
-shape=box
-]
-"Sym(93)" -> "Sym(94)"
 "Sym(97)" [
-label="Sym(97) \n IndexPA(Sym(93),var_Sym(95): Int)"
+label="Sym(97) \n BackPermute(Sym(96),Sym(93))"
 shape=box
+color=blue
 ]
+"Sym(96)" -> "Sym(97)"
 "Sym(93)" -> "Sym(97)"
-"var_Sym(95): Int" -> "Sym(97)"
 "Sym(98)" [
-label="Sym(98) \n ToArray(Sym(97))"
+label="Sym(98) \n LengthPA(Sym(97))"
 shape=box
-color=green
 ]
 "Sym(97)" -> "Sym(98)"
-"Sym(96)" [
-label="Sym(96) \n Lambda(var_Sym(95): Int,Sym(98))"
-shape=box
-color=red
-]
-"var_Sym(95): Int" -> "Sym(96)"
-"Sym(98)" -> "Sym(96)"
 "Sym(99)" [
-label="Sym(99) \n ArrayTabulate(Sym(94),Sym(96))"
+label="Sym(99) \n Const(-1)"
 shape=box
-color=green
 ]
-"Sym(94)" -> "Sym(99)"
-"Sym(96)" -> "Sym(99)"
 "Sym(100)" [
-label="Sym(100) \n ArrayConcat(Sym(99))"
+label="Sym(100) \n ReplicatePA(Sym(98),Sym(99))"
 shape=box
-color=green
+color=blue
 ]
+"Sym(98)" -> "Sym(100)"
 "Sym(99)" -> "Sym(100)"
 "Sym(101)" [
-label="Sym(101) \n BaseArray(Sym(100))"
+label="Sym(101) \n ExpBinopArrayEquals(Sym(97),Sym(100))"
 shape=box
 color=blue
 ]
+"Sym(97)" -> "Sym(101)"
 "Sym(100)" -> "Sym(101)"
-"Sym(106)" [
-label="Sym(106) \n BackPermute(Sym(105),Sym(101))"
-shape=box
-color=blue
-]
-"Sym(105)" -> "Sym(106)"
-"Sym(101)" -> "Sym(106)"
-"Sym(107)" [
-label="Sym(107) \n LengthPA(Sym(106))"
-shape=box
-]
-"Sym(106)" -> "Sym(107)"
-"Sym(108)" [
-label="Sym(108) \n Const(-1)"
-shape=box
-]
-"Sym(109)" [
-label="Sym(109) \n ReplicatePA(Sym(107),Sym(108))"
-shape=box
-color=blue
-]
-"Sym(107)" -> "Sym(109)"
-"Sym(108)" -> "Sym(109)"
-"Sym(110)" [
-label="Sym(110) \n ExpBinopArrayEquals(Sym(106),Sym(109))"
-shape=box
-color=blue
-]
-"Sym(106)" -> "Sym(110)"
-"Sym(109)" -> "Sym(110)"
-"Sym(111)" [
-label="Sym(111) \n FlagSplit(Sym(101),Sym(110))"
-shape=box
-]
-"Sym(101)" -> "Sym(111)"
-"Sym(110)" -> "Sym(111)"
-"Sym(112)" [
-label="Sym(112) \n First(Sym(111))"
-shape=box
-]
-"Sym(111)" -> "Sym(112)"
 "Sym(102)" [
-label="Sym(102) \n VarPA(Sym(75))"
+label="Sym(102) \n FlagSplit(Sym(93),Sym(101))"
 shape=box
-color=blue
 ]
-"Sym(75)" -> "Sym(102)"
+"Sym(93)" -> "Sym(102)"
+"Sym(101)" -> "Sym(102)"
 "Sym(103)" [
-label="Sym(103) \n ExpandBy(Sym(102),Sym(93))"
+label="Sym(103) \n First(Sym(102))"
 shape=box
-color=blue
 ]
 "Sym(102)" -> "Sym(103)"
-"Sym(93)" -> "Sym(103)"
-"Sym(114)" [
-label="Sym(114) \n FlagSplit(Sym(103),Sym(110))"
-shape=box
-]
-"Sym(103)" -> "Sym(114)"
-"Sym(110)" -> "Sym(114)"
-"Sym(115)" [
-label="Sym(115) \n First(Sym(114))"
-shape=box
-]
-"Sym(114)" -> "Sym(115)"
-"Sym(117)" [
-label="Sym(117) \n PairArray(Sym(112),Sym(115))"
+"Sym(94)" [
+label="Sym(94) \n ExpandBy(Sym(79),Sym(92))"
 shape=box
 color=blue
 ]
-"Sym(112)" -> "Sym(117)"
-"Sym(115)" -> "Sym(117)"
-"Sym(121)" [
-label="Sym(121) \n WritePA(Sym(105),Sym(117))"
+"Sym(79)" -> "Sym(94)"
+"Sym(92)" -> "Sym(94)"
+"Sym(105)" [
+label="Sym(105) \n FlagSplit(Sym(94),Sym(101))"
+shape=box
+]
+"Sym(94)" -> "Sym(105)"
+"Sym(101)" -> "Sym(105)"
+"Sym(106)" [
+label="Sym(106) \n First(Sym(105))"
+shape=box
+]
+"Sym(105)" -> "Sym(106)"
+"Sym(108)" [
+label="Sym(108) \n PairArray(Sym(103),Sym(106))"
 shape=box
 color=blue
 ]
-"Sym(105)" -> "Sym(121)"
-"Sym(117)" -> "Sym(121)"
-"Sym(127)" [
-label="Sym(127) \n IfArray(Sym(91),Sym(73),Sym(121),)"
+"Sym(103)" -> "Sym(108)"
+"Sym(106)" -> "Sym(108)"
+"Sym(112)" [
+label="Sym(112) \n WritePA(Sym(96),Sym(108))"
 shape=box
 color=blue
 ]
-"Sym(91)" -> "Sym(127)"
-"Sym(73)" -> "Sym(127)"
-"Sym(121)" -> "Sym(127)"
+"Sym(96)" -> "Sym(112)"
+"Sym(108)" -> "Sym(112)"
+"Sym(118)" [
+label="Sym(118) \n IfArray(Sym(90),Sym(73),Sym(112),)"
+shape=box
+color=blue
+]
+"Sym(90)" -> "Sym(118)"
+"Sym(73)" -> "Sym(118)"
+"Sym(112)" -> "Sym(118)"
 "Sym(69)" [
-label="Sym(69) \n Lambda(var_Sym(68): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int],Sym(127))"
+label="Sym(69) \n Lambda(var_Sym(68): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int],Sym(118))"
 shape=box
 color=red
 ]
 "var_Sym(68): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int]" -> "Sym(69)"
-"Sym(127)" -> "Sym(69)"
+"Sym(118)" -> "Sym(69)"
 }

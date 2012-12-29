@@ -50,12 +50,19 @@ trait GpuArrayOperations extends ScalanStaged {
 
   // ------------------------------------
 
+  //  zs = xs zip ys map { (x,y) => x + y - 10 }
+  //  val zs = xs |+| ys |-| replicate(xs.length, 10)
+  //
+  //  ys = xs filter { case x => x != 0 }
+  //  val ys = (xs flagSplit (xs |!=| replicate(xs.length, 0)))._1
+  //
+  //  xs.expandBy(ns)  //  xs.length == ns.length
+  //  xs.nestBy(segments)      // ExpNestedArray(xs, segments)
+
   type GraphNode = Int
   type Graph = PArray[PArray[GraphNode]]
   type FrontierNodes = PArray[GraphNode]
   type BFSTree = PArray[GraphNode]
-
-  def id[T](x: Rep[T]) = x
 
   def pairFst[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(r, _) => r}
   def pairSnd[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(_, r) => r}
@@ -65,23 +72,14 @@ trait GpuArrayOperations extends ScalanStaged {
   def firstPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = FirstPA(arr)
   def secondPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = SecondPA(arr)
 
-//  zs = xs zip ys map { (x,y) => x + y - 10 }
-//  val zs = xs |+| ys |-| replicate(xs.length, 10)
-//
-//  ys = xs filter { case x => x != 0 }
-//  val ys = (xs flagSplit (xs |!=| replicate(xs.length, 0)))._1
-//
-//  xs.expandBy(ns)  //  xs.length == ns.length
-//  xs.nestBy(segments)      // ExpNestedArray(xs, segments)
-
   lazy val breadthFirstSearch =
     letrec((bfs: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode)) => BFSTree]) =>
            (input: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode))]) => {
       val Pair(Pair(Pair(graph, frontierNodes), bfsTree), endNode) = input
-      if (isEmpty(frontierNodes) || any(frontierNodes map (x => x == endNode))) bfsTree
+      if (isEmpty(frontierNodes) || any(frontierNodes |==| replicate(frontierNodes.length, endNode))) bfsTree
       else {
         val neighbors: PA[PArray[GraphNode]] = graph.backPermute(frontierNodes)
-        val next1: PA[(GraphNode, GraphNode)] = (neighbors flatMap id) zip (frontierNodes.expandBy(neighbors))
+        val next1: PA[(GraphNode, GraphNode)] = neighbors.values zip (frontierNodes.expandBy(neighbors))
         val next2: PA[(GraphNode, GraphNode)] = {
           val t1 = bfsTree.backPermute(firstPA(next1))
           val t2 = t1 |==| replicate(t1.length, -1)
