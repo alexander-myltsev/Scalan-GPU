@@ -22,14 +22,9 @@ trait Samples extends Scalan {
   def pairFst[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(r, _) => r}
 
   def id[T](x: Rep[T]) = x
-
   def isEmpty[T](arr: Rep[PArray[T]]) = arr.length == 0
-
   def any(arr: Rep[PArray[Boolean]]) = !isEmpty(pairFst(arr flagSplit arr))
-
-  //def indexPA[T:Elem](arr: Rep[PArray[T]], idxs: Rep[PArray[Int]]) = idxs map {case i => arr.index(i)}
   def firstPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = arr map { case Pair(a, b) => a }
-
   def secondPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = arr map { case Pair(a, b) => b }
 
   lazy val breadthFirstSearch: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode)) => BFSTree] =
@@ -39,6 +34,7 @@ trait Samples extends Scalan {
         case true => bfsTree
         case false =>
           val neighbors: PA[PArray[GraphNode]] = graph.backPermute(frontierNodes)
+          // Replace (neighbors flatMap id) with neighbors.values when it implemented
           val next1: PA[(GraphNode, GraphNode)] = (neighbors flatMap id) zip (frontierNodes.expandBy(neighbors))
           val next2: PA[(GraphNode, GraphNode)] = {
             val t1 = bfsTree.backPermute(firstPA(next1))

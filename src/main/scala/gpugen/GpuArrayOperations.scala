@@ -67,10 +67,8 @@ trait GpuArrayOperations extends ScalanStaged {
   def pairFst[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(r, _) => r}
   def pairSnd[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(_, r) => r}
 
-  def isEmpty[T](arr: Rep[PArray[T]]) = arr.length == 0
-  def any(arr: Rep[PArray[Boolean]]) = !isEmpty(pairFst(arr flagSplit arr))
-  def firstPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = FirstPA(arr)
-  def secondPA[T1: Elem, T2: Elem](arr: PA[(T1, T2)]) = SecondPA(arr)
+  def isEmpty[T](arr: PA[T]) = arr.length == 0
+  def any(arr: PA[Boolean]) = !isEmpty(pairFst(arr flagSplit arr))
 
   lazy val breadthFirstSearch =
     letrec((bfs: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode)) => BFSTree]) =>
@@ -81,7 +79,7 @@ trait GpuArrayOperations extends ScalanStaged {
         val neighbors: PA[PArray[GraphNode]] = graph.backPermute(frontierNodes)
         val next1: PA[(GraphNode, GraphNode)] = neighbors.values zip (frontierNodes.expandBy(neighbors))
         val next2: PA[(GraphNode, GraphNode)] = {
-          val t1 = bfsTree.backPermute(firstPA(next1))
+          val t1 = bfsTree.backPermute(next1.fst)
           val t2 = t1 |==| replicate(t1.length, -1)
           pairFst(next1 flagSplit t2)
         }
@@ -89,8 +87,8 @@ trait GpuArrayOperations extends ScalanStaged {
         val bfsTree1: PA[GraphNode] = bfsTree <-- next2
 
         val next3: PA[GraphNode] = {
-          val t1 = secondPA(next2) |==| (bfsTree1.backPermute(firstPA(next2)))
-          pairFst(firstPA(next2) flagSplit t1)
+          val t1 = next2.snd |==| (bfsTree1.backPermute(next2.fst))
+          pairFst(next2.fst flagSplit t1)
         }
 
         bfsTree1
