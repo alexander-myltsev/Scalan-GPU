@@ -31,6 +31,8 @@ using std::string;
 //#define DEBUG
 
 namespace scalan_thrust {
+  template <class T> class nested_array;
+
   /*
   // NOTE: This doesn't work. nvcc doesn't compile virtual functions.
   template <class Arg1, class Arg2, class Result>
@@ -164,6 +166,15 @@ namespace scalan_thrust {
       return pair<base_array<T>, base_array<T> >(*(new base_array<T>(vals_true)), *(new base_array<T>(vals_false))); // TODO: Is here a memory leak?
     }
 
+    template <class B>
+    base_array<T> expand_by(nested_array<B> nested_arr) {
+      device_vector<int> expanded_indxs(nested_arr.values().length());
+      device_vector<T> expanded_values(nested_arr.values().length());
+      expand(nested_arr.segments().data().begin(), nested_arr.segments().data().end(), expanded_indxs.begin());
+      thrust::gather(expanded_indxs.begin(), expanded_indxs.end(), this->data().begin(), expanded_values.begin());
+      return base_array<T>(expanded_values);
+    }
+
   }; // class base_array<T>
   
   template <class T>
@@ -239,19 +250,16 @@ namespace scalan_thrust {
     virtual int length() const { return segments().length(); }
   };
   
+  // expand([3,2,0,4]) -> [0,0,0,1,1,3,3,3,3]
   template <typename InputIterator1,
-            typename InputIterator2,
             typename OutputIterator>
   OutputIterator expand(InputIterator1 first1,
                         InputIterator1 last1,
-                        InputIterator2 first2,
                         OutputIterator output)
   {
     // segs:   2 3 1 x
     // first1: |
     // last1:        |
-    //         0 1 2 x
-    // first2: |
 
     typedef typename thrust::iterator_difference<InputIterator1>::type difference_type; // int
     
@@ -312,9 +320,7 @@ namespace scalan_thrust {
   base_array<float> sum_lifted(const nested_array<float>& na) {
     base_array<int> segs = na.segments();
     device_vector<int> segs_keys(na.values().length());
-    expand(segs.data().begin(), segs.data().end(), 
-           thrust::counting_iterator<int>(0), 
-           segs_keys.begin());
+    expand(segs.data().begin(), segs.data().end(), segs_keys.begin());
 
   #ifdef DEBUG
 	std::cout << "sum_lifted::seg_keys: "; thrust::copy(segs_keys.begin(), segs_keys.end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
@@ -529,6 +535,27 @@ void test_flag_split() {
 
 }
 
+void test_base_array_expand_by() {
+  device_vector<int> d_a(3);
+  d_a[0] = 1; d_a[1] = 2; d_a[2] = 3;
+  base_array<int> a(d_a);
+
+  device_vector<int> d_segs(3);
+  d_segs[0] = 1; d_segs[1] = 2; d_segs[2] = 1;
+  device_vector<int> d_vals(4);
+  d_vals[0] = 3; d_vals[1] = 4; d_vals[2] = 5; d_vals[3] = 6;
+  nested_array<int> na(&base_array<int>(d_vals), base_array<int>(d_segs));
+
+  base_array<int> r = a.expand_by(na);
+
+  //std::cout << "r: "; thrust::copy(r.data().begin(), r.data().end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
+
+  assert(r.data()[0] == 1);
+  assert(r.data()[1] == 2);
+  assert(r.data()[2] == 2);
+  assert(r.data()[3] == 3);
+}
+
 void tests() {
   std::cout << "--- test_sum ---" << std::endl;
   test_sum();
@@ -544,6 +571,8 @@ void tests() {
   test_smvm();
   std::cout << "--- test_flag_split ---" << std::endl;
   test_flag_split();
+  std::cout << "--- test_base_array_expand_by --- " << std::endl;
+  test_base_array_expand_by();
   printf("OK!");
 }
 
@@ -555,17 +584,75 @@ int main() {
 
 // ----------------------------------------
 
-base_array<float> fun(const pair<nested_array<pair<int, float> >, base_array<float> >& x14) {
-base_array<float> x17 = x14.snd();
-base_array<float> x20 = x17;
-nested_array<pair<int, float> > x16 = x14.fst();
-pair_array<int, float> x18 = x16.values();
-base_array<int> x19 = x18.first();
-base_array<float> x21 = x20.back_permute(x19);
-base_array<float> x22 = x18.second();
-base_array<float> x23 = binop_array(x21, x22);
-base_array<int> x24 = x16.segments();
-nested_array<float> x25 = nested_array<float>(&x23, x24);
-base_array<float> x26 = sum_lifted(x25);
-return x26;
+base_array<int> fun(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
+// First(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])
+pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
+// First(Sym(12))
+pair<nested_array<int>, base_array<int>> x14 = x12.fst();
+// Second(Sym(14))
+base_array<int> x17 = x14.snd();
+// LengthPA(Sym(17))
+int x18 = x17.length();
+// Const(0)
+// Equal(Sym(18),Sym(1))
+bool x19 = x18 == x1;
+// VarPA(Sym(17))
+base_array<int> x21 = x17;
+// Second(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])
+int x13 = x10.snd();
+// ReplicatePA(Sym(18),Sym(13))
+base_array<int> x20 = base_array<int>(x18, x13);
+// ExpBinopArrayEquals(Sym(21),Sym(20))
+base_array<bool> x22 = binop_array_equal(x21, x20);
+// FlagSplit(Sym(22),Sym(22))
+pair<base_array<float>, base_array<float> > x26 = x22.flag_split(x22);
+// First(Sym(26))
+base_array<bool> x27 = x26.fst();
+// LengthPA(Sym(27))
+int x29 = x27.length();
+// Equal(Sym(29),Sym(1))
+bool x30 = x29 == x1;
+// Not(Sym(30))
+bool x31 = !(x30);
+// Or(Sym(19),Sym(31))
+bool x32 = (x19||x31);
+// Second(Sym(12))
+base_array<int> x15 = x12.snd();
+// VarPA(Sym(15))
+base_array<int> x38 = x15;
+// First(Sym(14))
+nested_array<int> x16 = x14.fst();
+// VarPA(Sym(16))
+nested_array<int> x33 = x16;
+// BackPermute(Sym(33),Sym(17))
+nested_array<int> x34 = x33.back_permute(x17);
+// NestedArrayValues(Sym(34))
+nested_array<int> x35 = x34.values();
+// BackPermute(Sym(38),Sym(35))
+base_array<int> x39 = x38.back_permute(x35);
+// LengthPA(Sym(39))
+int x40 = x39.length();
+// Const(-1)
+// ReplicatePA(Sym(40),Sym(41))
+base_array<int> x42 = base_array<int>(x40, x41);
+// ExpBinopArrayEquals(Sym(39),Sym(42))
+base_array<bool> x43 = binop_array_equal(x39, x42);
+// FlagSplit(Sym(35),Sym(43))
+pair<base_array<float>, base_array<float> > x44 = x35.flag_split(x43);
+// First(Sym(44))
+base_array<int> x45 = x44.fst();
+// ExpandBy(Sym(21),Sym(34))
+base_array<int> x36 = x21.expand_by(x34);
+// FlagSplit(Sym(36),Sym(43))
+pair<base_array<float>, base_array<float> > x47 = x36.flag_split(x43);
+// First(Sym(47))
+base_array<int> x48 = x47.fst();
+// PairArray(Sym(45),Sym(48))
+pair_array<int, int> x50(x45, x48);
+// WritePA(Sym(38),Sym(50))
+???
+// IfArray(Sym(32),Sym(15),Sym(54),)
+base_array<int> x62;
+if (x32) x62 = x15 else x62 = x54;
+return x62;
 }

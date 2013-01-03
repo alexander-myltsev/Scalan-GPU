@@ -21,7 +21,7 @@ trait GpuGen extends GenericCodegen {
     case "Boolean" => "bool"
     case "Unit" => "void"
     case "java.lang.String" => "char *"
-    case x if x.startsWith("scala.Tuple2") => "pair<" + remap(m.typeArguments(0)) + ", " + remap(m.typeArguments(1)) + "> "
+    case x if x.startsWith("scala.Tuple2") => "pair<" + remap(m.typeArguments(0)) + ", " + remap(m.typeArguments(1)) + ">"
 
     case "Array[Float]" => "device_vector<float>*"
     case "Array[Int]" => "device_vector<int>*"
@@ -122,7 +122,20 @@ trait GpuGen extends GenericCodegen {
         stream.println("bool " + quote(s) + " = (" + quote(orLg.lhs) + "||" + quote(orLg.rhs) + ");")
 
       case (expandBy: ExpandBy[_, _]) =>
+        // TODO: Generalize from base_array<int>
         stream.println("base_array<int> " + quote(s) + " = " + quote(expandBy.source) + ".expand_by(" + quote(expandBy.nested) + ");")
+
+      case (pairArr: PairArray[_, _]) =>
+        // TODO: Generalize from pair_array<int, int>
+        stream.println("pair_array<int, int> " + quote(s) + "(" + quote(pairArr.a) + ", " + quote(pairArr.b) + ");")
+
+      case (wrt: WritePA[_]) =>
+        stream.println("???")
+
+      case (ifArr: ExpIfArray[_]) =>
+        val typ = "base_array<int>"
+        stream.println(typ + " " + quote(s) + ";")
+        stream.println("if (" + quote(ifArr.cond) + ") " + quote(s) + " = " + quote(ifArr.thenp) + " else " + quote(s) + " = " + quote(ifArr.elsep) + ";")
 
       case _ => super.emitNode(s, rhs)
     }
