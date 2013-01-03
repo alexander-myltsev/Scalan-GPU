@@ -26,6 +26,7 @@ trait GpuGen extends GenericCodegen {
     case "Array[Float]" => "device_vector<float>*"
     case "Array[Int]" => "device_vector<int>*"
 
+    case "scalan.dsl.ArraysBase$PArray[Boolean]" => "base_array<bool>"
     case "scalan.dsl.ArraysBase$PArray[Int]" => "base_array<int>"
     case "scalan.dsl.ArraysBase$PArray[Float]" => "base_array<float>" // TODO: Fix Thrust-library then this line. Should be 'parray<float>*'
 
@@ -36,6 +37,7 @@ trait GpuGen extends GenericCodegen {
   }
 
   override def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
+    stream.println("// " + rhs)
     rhs match {
       case (c: Const[_]) =>
       //stream.println(quote(s) + " = const(" + c.x + ")")
@@ -66,11 +68,7 @@ trait GpuGen extends GenericCodegen {
         stream.println(typ + " " + quote(s) + " = binop_array(" + quote(ba.lhs) + ", " + quote(ba.rhs) + ");")
 
       case (nav: NestedArrayValues[_]) =>
-        val typ = nav.nested.Elem.manifest.toString match {
-          case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" =>
-            "pair_array<int, float>"
-          case _ => !!!("Unsupported")
-        }
+        val typ = remap(nav.nested.Elem.manifest)
         stream.println(typ + " " + quote(s) + " = " + quote(nav.nested) + ".values();")
 
       case (nas: NestedArraySegments[_]) =>
@@ -82,7 +80,7 @@ trait GpuGen extends GenericCodegen {
         stream.println(typ + " " + quote(s) + " = " + quote(nas.nested) + ".segments();")
 
       case (bp: BackPermute[_]) =>
-        val typ = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
+        val typ = remap(bp.x.Elem.manifest)
         stream.println(typ + " " + quote(s) + " = " + quote(bp.x) + ".back_permute(" + quote(bp.idxs) + ");")
 
       case (fpa: FirstPA[_, _]) =>
@@ -112,10 +110,19 @@ trait GpuGen extends GenericCodegen {
         stream.println("base_array<int> " + quote(s) + " = base_array<int>(" + quote(reppa.count) + ", " + quote(reppa.v) + ");")
 
       case (ebaEq: ExpBinopArrayEquals[_]) =>
-        stream.println("bool " + quote(s) + " = binop_array_equal(" + quote(ebaEq.a) + ", " + quote(ebaEq.b))
+        stream.println("base_array<bool> " + quote(s) + " = binop_array_equal(" + quote(ebaEq.a) + ", " + quote(ebaEq.b) + ");")
 
       case (flgSplt: FlagSplit[_]) =>
-        stream.println()
+        stream.println("pair<base_array<float>, base_array<float> > " + quote(s) + " = " + quote(flgSplt.arr) + ".flag_split(" + quote(flgSplt.flags) + ");");
+
+      case (notLg: Not) =>
+        stream.println("bool " + quote(s) + " = !(" + quote(notLg.lhs) + ");")
+
+      case (orLg: Or) =>
+        stream.println("bool " + quote(s) + " = (" + quote(orLg.lhs) + "||" + quote(orLg.rhs) + ");")
+
+      case (expandBy: ExpandBy[_, _]) =>
+        stream.println("base_array<int> " + quote(s) + " = " + quote(expandBy.source) + ".expand_by(" + quote(expandBy.nested) + ");")
 
       case _ => super.emitNode(s, rhs)
     }

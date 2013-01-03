@@ -28,6 +28,8 @@ using std::string;
 //#define DEBUG
 
 namespace scalan_thrust {
+  template <class T> class nested_array;
+
   /*
   // NOTE: This doesn't work. nvcc doesn't compile virtual functions.
   template <class Arg1, class Arg2, class Result>
@@ -161,6 +163,15 @@ namespace scalan_thrust {
       return pair<base_array<T>, base_array<T> >(*(new base_array<T>(vals_true)), *(new base_array<T>(vals_false))); // TODO: Is here a memory leak?
     }
 
+    template <class B>
+    base_array<T> expand_by(nested_array<B> nested_arr) {
+      device_vector<int> expanded_indxs(nested_arr.values().length());
+      device_vector<T> expanded_values(nested_arr.values().length());
+      expand(nested_arr.segments().data().begin(), nested_arr.segments().data().end(), expanded_indxs.begin());
+      thrust::gather(expanded_indxs.begin(), expanded_indxs.end(), this->data().begin(), expanded_values.begin());
+      return base_array<T>(expanded_values);
+    }
+
   }; // class base_array<T>
   
   template <class T>
@@ -236,19 +247,16 @@ namespace scalan_thrust {
     virtual int length() const { return segments().length(); }
   };
   
+  // expand([3,2,0,4]) -> [0,0,0,1,1,3,3,3,3]
   template <typename InputIterator1,
-            typename InputIterator2,
             typename OutputIterator>
   OutputIterator expand(InputIterator1 first1,
                         InputIterator1 last1,
-                        InputIterator2 first2,
                         OutputIterator output)
   {
     // segs:   2 3 1 x
     // first1: |
     // last1:        |
-    //         0 1 2 x
-    // first2: |
 
     typedef typename thrust::iterator_difference<InputIterator1>::type difference_type; // int
     
@@ -309,9 +317,7 @@ namespace scalan_thrust {
   base_array<float> sum_lifted(const nested_array<float>& na) {
     base_array<int> segs = na.segments();
     device_vector<int> segs_keys(na.values().length());
-    expand(segs.data().begin(), segs.data().end(), 
-           thrust::counting_iterator<int>(0), 
-           segs_keys.begin());
+    expand(segs.data().begin(), segs.data().end(), segs_keys.begin());
 
   #ifdef DEBUG
 	std::cout << "sum_lifted::seg_keys: "; thrust::copy(segs_keys.begin(), segs_keys.end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
@@ -526,6 +532,27 @@ void test_flag_split() {
 
 }
 
+void test_base_array_expand_by() {
+  device_vector<int> d_a(3);
+  d_a[0] = 1; d_a[1] = 2; d_a[2] = 3;
+  base_array<int> a(d_a);
+
+  device_vector<int> d_segs(3);
+  d_segs[0] = 1; d_segs[1] = 2; d_segs[2] = 1;
+  device_vector<int> d_vals(4);
+  d_vals[0] = 3; d_vals[1] = 4; d_vals[2] = 5; d_vals[3] = 6;
+  nested_array<int> na(&base_array<int>(d_vals), base_array<int>(d_segs));
+
+  base_array<int> r = a.expand_by(na);
+
+  //std::cout << "r: "; thrust::copy(r.data().begin(), r.data().end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
+
+  assert(r.data()[0] == 1);
+  assert(r.data()[1] == 2);
+  assert(r.data()[2] == 2);
+  assert(r.data()[3] == 3);
+}
+
 void tests() {
   std::cout << "--- test_sum ---" << std::endl;
   test_sum();
@@ -541,6 +568,8 @@ void tests() {
   test_smvm();
   std::cout << "--- test_flag_split ---" << std::endl;
   test_flag_split();
+  std::cout << "--- test_base_array_expand_by --- " << std::endl;
+  test_base_array_expand_by();
   printf("OK!");
 }
 
