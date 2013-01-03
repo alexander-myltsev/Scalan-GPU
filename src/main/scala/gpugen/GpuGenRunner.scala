@@ -29,24 +29,28 @@ object GpuGenRunner {
   }
 
   def test_bfs() = {
+    import seq._
 
+    val f = compile[((((oGpu.Graph, oGpu.FrontierNodes), oGpu.BFSTree), oGpu.GraphNode)) => oGpu.BFSTree,
+      Int](seq)(oGpu.breadthFirstSearch)
   }
 
   def main(args: Array[String]): Unit = {
-    test_smvm()
-    //test_bfs()
+    //test_smvm()
+    test_bfs()
   }
 
   def compile[A, B](seq: ScalanSequential)(l: oGpu.Rep[A]): seq.Rep[B] = {
     import oGpu._
 
-    oGpu.globDefsArr = globalDefs.toArray
+    //oGpu.globDefsArr = globalDefs.toArray
+    //oGpu.globDefsArr foreach (System.out.println)
 
     val bytesStream = new ByteArrayOutputStream
     val stream = new PrintWriter(bytesStream, true) {
       override def println(s: String) = {
         super.println(s)
-        //System.out.println(s) // NOTE: Uncomment me for debug
+        System.out.println(s) // NOTE: Uncomment this for debug
       }
 
       override def print(s: String) = {
@@ -66,13 +70,15 @@ object GpuGenRunner {
     l match {
       case Def(lam: Lambda[_, _]) =>
         val tp = lam.y.Elem.manifest.toString match {
-          case "scalan.dsl.ArraysBase$PArray[Float]" =>
-            "base_array<float>"
+          case "scalan.dsl.ArraysBase$PArray[Float]" => "base_array<float>"
+          case "scalan.dsl.ArraysBase$PArray[Int]" => "base_array<int>"
         }
 
         lam.x.Elem.manifest.toString match {
           case "scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]], scalan.dsl.ArraysBase$PArray[Float]]" =>
             stream.println(tp + " fun(const pair<nested_array<pair<int, float> >, base_array<float> >& " + quote(lam.x) + ") {")
+          case "scala.Tuple2[scala.Tuple2[scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], Int]" =>
+            stream.println(tp + " fun(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& " + quote(lam.x) + ") {")
         }
         emitBlock(lam.y)(stream)
         stream.println("return " + quote(lam.y) + ";")

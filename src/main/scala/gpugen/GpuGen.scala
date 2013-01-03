@@ -13,6 +13,7 @@ trait GpuGen extends GenericCodegen {
   var globDefsArr: Array[TP[_]] = null
 
   def remap[A](m: Manifest[A]): String = m.toString match {
+    //case "scala.Tuple2[scala.Tuple2[scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], Int]"
     case "Int" => "int"
     case "Long" => "long"
     case "Float" => "float"
@@ -20,10 +21,17 @@ trait GpuGen extends GenericCodegen {
     case "Boolean" => "bool"
     case "Unit" => "void"
     case "java.lang.String" => "char *"
+    case x if x.startsWith("scala.Tuple2") => "pair<" + remap(m.typeArguments(0)) + ", " + remap(m.typeArguments(1)) + "> "
+
     case "Array[Float]" => "device_vector<float>*"
     case "Array[Int]" => "device_vector<int>*"
-    case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" => "nested_array<pair<int, float> >"
+
+    case "scalan.dsl.ArraysBase$PArray[Int]" => "base_array<int>"
     case "scalan.dsl.ArraysBase$PArray[Float]" => "base_array<float>" // TODO: Fix Thrust-library then this line. Should be 'parray<float>*'
+
+    case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[Int]]" => "nested_array<int>"
+    case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" => "nested_array<pair<int, float> >"
+
     case _ => throw new GenerationFailedException("CGen: remap(m) : Unknown data type (%s)".format(m.toString))
   }
 
@@ -33,65 +41,81 @@ trait GpuGen extends GenericCodegen {
       //stream.println(quote(s) + " = const(" + c.x + ")")
 
       case (vpa: VarPA[_]) =>
-        val tp = remap(vpa.a.Elem.manifest)
-        stream.println(tp + " " + quote(s) + " = " + quote(vpa.a) + ";")
+        val typ = remap(vpa.a.Elem.manifest)
+        stream.println(typ + " " + quote(s) + " = " + quote(vpa.a) + ";")
 
       case (fst: First[_, _]) =>
-        val tp = remap(fst.pair.Elem.manifest.typeArguments(0))
-        stream.println(tp + " " + quote(s) + " = " + quote(fst.pair) + ".fst();")
+        val typ = remap(fst.pair.Elem.manifest.typeArguments(0))
+        stream.println(typ + " " + quote(s) + " = " + quote(fst.pair) + ".fst();")
 
       case (snd: Second[_, _]) =>
-        val tp = remap(snd.pair.Elem.manifest.typeArguments(1))
-        stream.println(tp + " " + quote(s) + " = " + quote(snd.pair) + ".snd();")
+        val typ = remap(snd.pair.Elem.manifest.typeArguments(1))
+        stream.println(typ + " " + quote(s) + " = " + quote(snd.pair) + ".snd();")
 
       case (sl: SumLiftedPA[_]) =>
-        val tp = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
-        stream.println(tp + " " + quote(s) + " = sum_lifted(" + quote(sl.source) + ");")
+        val typ = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(typ + " " + quote(s) + " = sum_lifted(" + quote(sl.source) + ");")
 
       case (na: ExpNestedArray[_]) =>
-        val tp = "nested_array<float>" // TODO: Fix generic type as it can be not 'float'
-        stream.println(tp + " " + quote(s) + " = " + tp + "(&" + quote(na.arr) + ", " + quote(na.segments) + ");")
+        val typ = "nested_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(typ + " " + quote(s) + " = " + typ + "(&" + quote(na.arr) + ", " + quote(na.segments) + ");")
 
       case (ba: ExpBinopArray[_]) =>
         // TODO: analyse ba.op
-        val tp = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
-        stream.println(tp + " " + quote(s) + " = binop_array(" + quote(ba.lhs) + ", " + quote(ba.rhs) + ");")
+        val typ = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(typ + " " + quote(s) + " = binop_array(" + quote(ba.lhs) + ", " + quote(ba.rhs) + ");")
 
       case (nav: NestedArrayValues[_]) =>
-        val tp = nav.nested.Elem.manifest.toString match {
+        val typ = nav.nested.Elem.manifest.toString match {
           case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" =>
             "pair_array<int, float>"
           case _ => !!!("Unsupported")
         }
-        stream.println(tp + " " + quote(s) + " = " + quote(nav.nested) + ".values();")
+        stream.println(typ + " " + quote(s) + " = " + quote(nav.nested) + ".values();")
 
       case (nas: NestedArraySegments[_]) =>
-        val tp = nas.nested.Elem.manifest.toString match {
+        val typ = nas.nested.Elem.manifest.toString match {
           case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" =>
             "base_array<int>"
           case _ => !!!("Unsupported")
         }
-        stream.println(tp + " " + quote(s) + " = " + quote(nas.nested) + ".segments();")
+        stream.println(typ + " " + quote(s) + " = " + quote(nas.nested) + ".segments();")
 
       case (bp: BackPermute[_]) =>
-        val tp = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
-        stream.println(tp + " " + quote(s) + " = " + quote(bp.x) + ".back_permute(" + quote(bp.idxs) + ");")
+        val typ = "base_array<float>" // TODO: Fix generic type as it can be not 'float'
+        stream.println(typ + " " + quote(s) + " = " + quote(bp.x) + ".back_permute(" + quote(bp.idxs) + ");")
 
       case (fpa: FirstPA[_, _]) =>
-        val tp = fpa.source.Elem.manifest.toString match {
+        val typ = fpa.source.Elem.manifest.toString match {
           case "scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]" =>
             "base_array<int>"
           case _ => !!!("Unsupported")
         }
-        stream.println(tp + " " + quote(s) + " = " + quote(fpa.source) + ".first();")
+        stream.println(typ + " " + quote(s) + " = " + quote(fpa.source) + ".first();")
 
       case (spa: SecondPA[_, _]) =>
-        val tp = spa.source.Elem.manifest.toString match {
+        val typ = spa.source.Elem.manifest.toString match {
           case "scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]" =>
             "base_array<float>"
           case _ => !!!("Unsupported")
         }
-        stream.println(tp + " " + quote(s) + " = " + quote(spa.source) + ".second();")
+        stream.println(typ + " " + quote(s) + " = " + quote(spa.source) + ".second();")
+
+      case (lenpa: LengthPA[_]) =>
+        stream.println("int " + quote(s) + " = " + quote(lenpa.arr) + ".length();")
+
+      case (eq: Equal[_, _]) =>
+        stream.println("bool " + quote(s) + " = " + quote(eq.a) + " == " + quote(eq.b) + ";")
+
+      case (reppa: ReplicatePA[_]) =>
+        // TODO: extend code generation for more types, not only for int
+        stream.println("base_array<int> " + quote(s) + " = base_array<int>(" + quote(reppa.count) + ", " + quote(reppa.v) + ");")
+
+      case (ebaEq: ExpBinopArrayEquals[_]) =>
+        stream.println("bool " + quote(s) + " = binop_array_equal(" + quote(ebaEq.a) + ", " + quote(ebaEq.b))
+
+      case (flgSplt: FlagSplit[_]) =>
+        stream.println()
 
       case _ => super.emitNode(s, rhs)
     }

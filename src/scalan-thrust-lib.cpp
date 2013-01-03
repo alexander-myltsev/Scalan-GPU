@@ -72,13 +72,17 @@ namespace scalan_thrust {
   template<class T1, class T2>
   class pair {
   private:
-    T1 m_v1;
-    T2 m_v2;
+    T1 const * m_v1;
+    T2 const * m_v2;
   public:
-    pair(T1 v1, T2 v2) : m_v1(v1), m_v2(v2)  {  }
+    pair(const T1& v1, const T2& v2) : m_v1(&v1), m_v2(&v2) { }
+    pair() : m_v1(NULL), m_v2(NULL) { }
 
-    T1 fst() const { return m_v1; }
-    T2 snd() const { return m_v2; }
+    const T1& fst() const { return *m_v1; }
+    const T2& snd() const { return *m_v2; }
+
+    ~pair() {
+    }
   };
 
   template <class T>
@@ -96,6 +100,7 @@ namespace scalan_thrust {
   public:
     base_array() : m_data() { }
     base_array(int size) : m_data(size) { }
+    base_array(int size, T t) : m_data(size, t) { }
     base_array(const host_vector<T>& h_vec) : m_data(h_vec) { }
     base_array(const device_vector<T>& d_vec) : m_data(d_vec) { }
     
@@ -141,13 +146,26 @@ namespace scalan_thrust {
     }
 
     T get(int i) {
-      return m_data[i];
+      return this[i];
     }
-  };
+
+    pair<base_array<T>, base_array<T> > flag_split(const base_array<bool>& flags) {
+      assert(this->length() == flags.length());
+
+      device_vector<bool> flgs_dt = flags.data();
+      device_vector<T> splitted_vals(this->data());
+      thrust::sort_by_key(flgs_dt.begin(), flgs_dt.end(), splitted_vals.begin());
+      int false_flags_count = thrust::count(flgs_dt.begin(), flgs_dt.end(), false);
+      device_vector<T> vals_false(splitted_vals.begin(), splitted_vals.begin() + false_flags_count);
+      device_vector<T> vals_true(splitted_vals.begin() + false_flags_count, splitted_vals.end());
+      return pair<base_array<T>, base_array<T> >(*(new base_array<T>(vals_true)), *(new base_array<T>(vals_false))); // TODO: Is here a memory leak?
+    }
+
+  }; // class base_array<T>
   
   template <class T>
   base_array<T> binop_array(const base_array<T>& a, const base_array<T>& b) {
-    assert(a.data().size() == b.data().size());
+    assert(a.length() == b.length());
     device_vector<T> d_vec_res(a.data().size());
     thrust::transform(
       a.data().begin(), a.data().end(),
@@ -157,7 +175,13 @@ namespace scalan_thrust {
     base_array<T> res(d_vec_res);
     return res;
   }
-  
+
+  template <class T>
+  bool binop_array_equal(const base_array<T>& a, const base_array<T>& b) {
+    assert(a.length() == b.length());
+    return thrust::equal(a.data().begin(), a.data().end(), b.data().begin());
+  }
+
   template <class T1, class T2>
   class pair_array : public parray<pair<T1, T2> > {
   private:
@@ -172,7 +196,7 @@ namespace scalan_thrust {
     base_array<T2> const& second() const { return m_b; }
     
     virtual int length() const { return m_a.length(); }
-    virtual device_vector<pair<T1, T2>> const& data() const { return device_vector<pair<T1, T2>>(); } // TODO: There should not be data call like this. Fix it.
+    virtual device_vector<pair<T1, T2>> const& data() const { return device_vector<pair<T1, T2>>(); } // TODO: Here should not be data call like this. Fix it.
   };
   
   template <class T>
@@ -320,3 +344,208 @@ using scalan_thrust::monoid;
 using scalan_thrust::binop_array;
 using scalan_thrust::sum_lifted;
 
+// ----- tests -----
+
+#define FLOAT_EQ(x, y) fabs((x) - (y)) < 0.001f
+void test_sum() {
+  host_vector<int> x5(10, 5);
+  base_array<int> x6(x5);
+  int x7 = x6.sum(monoid(0.f, monoid::OP_PLUS));
+  assert(FLOAT_EQ(x7, 0.f + 5.f * 10.f));
+}
+
+void test_back_permute_1() {
+  host_vector<float> x(9);
+  for (int i = 0; i < x.size(); i++) 
+    x[i] = ((float)i + 1) / 10.f;
+  
+  base_array<float> ba(x);
+  
+  #ifdef DEBUG
+  std::cout << "test_back_permute::ba: "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+  
+  device_vector<int> idxs_data(4);
+  idxs_data[0] = 2; idxs_data[1] = 1; idxs_data[2] = 4; idxs_data[3] = 8;
+  base_array<int> idxs(idxs_data);
+  
+  base_array<float> permutation = ba.back_permute(idxs);
+  // TODO: Fix floating number comparison
+  assert(permutation.data().size() == idxs_data.size());
+  assert(FLOAT_EQ(permutation.data()[0], ba.data()[2]));
+  assert(FLOAT_EQ(permutation.data()[1], ba.data()[1]));
+  assert(FLOAT_EQ(permutation.data()[2], ba.data()[4]));
+  assert(FLOAT_EQ(permutation.data()[3], ba.data()[8]));
+  
+  #ifdef DEBUG
+  std::cout << "test_back_permute::ba (should be same): "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  std::cout << "test_back_permute::permutation: "; thrust::copy(permutation.data().begin(), permutation.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+}
+
+void test_back_permute_2() {
+  host_vector<float> x(4);
+  for (int i = 0; i < x.size(); i++) 
+    x[i] = ((float)i + 1) / 10.f;
+  
+  base_array<float> ba(x);
+  
+  #ifdef DEBUG
+  std::cout << "test_back_permute::ba: "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+  
+  device_vector<int> idxs_data(6);
+  idxs_data[0] = 2; idxs_data[1] = 1; idxs_data[2] = 3; idxs_data[3] = 0; idxs_data[4] = 2; idxs_data[5] = 0; 
+  base_array<int> idxs(idxs_data);
+  
+  base_array<float> permutation = ba.back_permute(idxs);
+  // TODO: Fix floating number comparison
+  assert(permutation.data().size() == idxs_data.size());
+  assert(FLOAT_EQ(permutation.data()[0], ba.data()[2]));
+  assert(FLOAT_EQ(permutation.data()[1], ba.data()[1]));
+  assert(FLOAT_EQ(permutation.data()[2], ba.data()[3]));
+  assert(FLOAT_EQ(permutation.data()[3], ba.data()[0]));
+  assert(FLOAT_EQ(permutation.data()[4], ba.data()[2]));
+  assert(FLOAT_EQ(permutation.data()[5], ba.data()[0]));
+  
+  #ifdef DEBUG
+  std::cout << "test_back_permute::ba (should be same): "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  std::cout << "test_back_permute::permutation: "; thrust::copy(permutation.data().begin(), permutation.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+}
+
+void test_binop_array() {
+  host_vector<float> h_x(5), h_y(5);
+  for (int i = 0; i < h_x.size(); i++) {
+    h_x[i] = ((float)i + 1) / 10.f;
+    h_y[i] = ((float)i + 10) / 10.f;
+  }
+  
+  base_array<float> x(h_x), y(h_y);
+  
+  #ifdef DEBUG
+  std::cout << "test_back_permute::x: "; thrust::copy(x.data().begin(), x.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  std::cout << "test_back_permute::y: "; thrust::copy(y.data().begin(), y.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+  
+  base_array<float> res = binop_array<float>(x, y);
+  
+  #ifdef DEBUG
+  std::cout << "test_binop_array::res: "; thrust::copy(res.data().begin(), res.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+  
+  assert(res.data().size() == x.data().size());  
+  for (int i = 0; i < x.data().size(); i++) {
+    assert(FLOAT_EQ(res.data()[i], x.data()[i] * y.data()[i]));
+  }
+}
+
+void test_sum_lifted() {
+  host_vector<float> vals_h(6);
+  vals_h[0] = 1.f; vals_h[1] = 6.f; vals_h[2] = 3.f; vals_h[3] = 8.f; vals_h[4] = 15.f; vals_h[5] = 24.f;
+  
+  host_vector<int> segs_h(3);
+  segs_h[0] = 2; segs_h[1] = 3; segs_h[2] = 1;
+
+  base_array<float> vals(vals_h);
+  base_array<int> segs(segs_h);
+  nested_array<float> na(&vals, segs);
+      
+  base_array<float> res = sum_lifted(na);
+  
+  assert(res.length() == segs.length());
+  assert(FLOAT_EQ(res.data()[0], 7.f));
+  assert(FLOAT_EQ(res.data()[1], 26.f));
+  assert(FLOAT_EQ(res.data()[2], 24.f));
+  
+  #ifdef DEBUG
+  std::cout << "test_sum_lifted::res: "; thrust::copy(res.data().begin(), res.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+}
+
+void test_smvm() {
+  // init
+  host_vector<int> cols_h(6);
+  cols_h[0] = 0; cols_h[1] = 2; cols_h[2] = 0; cols_h[3] = 1; cols_h[4] = 2; cols_h[5] = 3;
+  
+  host_vector<float> vals_h(6);
+  vals_h[0] = 1.f; vals_h[1] = 2.f; vals_h[2] = 3.f; vals_h[3] = 4.f; vals_h[4] = 5.f; vals_h[5] = 6.f;
+  
+  host_vector<float> v_h(4);
+  v_h[0] = 1.f; v_h[1] = 2.f; v_h[2] = 3.f; v_h[3] = 4.f;
+  
+  host_vector<int> segs_h(3);
+  segs_h[0] = 2; segs_h[1] = 3; segs_h[2] = 1;
+
+  base_array<float> vals(vals_h), v(v_h);
+  base_array<int> cols(cols_h), segs(segs_h);
+  pair_array<int, float> rows(cols, vals);
+  nested_array<pair<int, float> > m(&rows, segs);
+  
+  // process
+  base_array<float> bp = v.back_permute(m.values().first());
+  base_array<float> ba = binop_array(bp, m.values().second());
+  base_array<float> res = sum_lifted(nested_array<float>(&ba, m.segments()));
+  
+  #ifdef DEBUG
+  std::cout << "test_smvm::res: "; thrust::copy(res.data().begin(), res.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  #endif
+  
+  // verify
+  assert(res.length() == segs.length());
+  assert(FLOAT_EQ(res.data()[0], 7.f));
+  assert(FLOAT_EQ(res.data()[1], 26.f));
+  assert(FLOAT_EQ(res.data()[2], 24.f));
+}
+
+void test_flag_split() {
+  // init
+  device_vector<float> d_a(6);
+  d_a[0] = 1.0f; d_a[1] = 2.0f; d_a[2] = 0.0f; d_a[3] = 3.0f; d_a[4] = 4.0f; d_a[5] = 5.0f;
+  base_array<float> a(d_a);
+  
+  device_vector<bool> d_flags(6);
+  d_flags[0] = d_flags[4] = true; d_flags[1] = d_flags[2] = d_flags[3] = d_flags[5] = false;
+  base_array<bool> flags(d_flags); 
+
+  // process
+  pair<base_array<float>, base_array<float> > res = a.flag_split(flags);
+
+  // verify
+  assert(res.fst().length() + res.snd().length() == flags.length());
+  assert(thrust::find(res.fst().data().begin(), res.fst().data().end(), 1.0f) != res.fst().data().end());
+  assert(thrust::find(res.fst().data().begin(), res.fst().data().end(), 4.0f) != res.fst().data().end());
+
+  assert(thrust::find(res.snd().data().begin(), res.snd().data().end(), 2.0f) != res.snd().data().end());
+  assert(thrust::find(res.snd().data().begin(), res.snd().data().end(), 0.0f) != res.snd().data().end());
+  assert(thrust::find(res.snd().data().begin(), res.snd().data().end(), 3.0f) != res.snd().data().end());
+  assert(thrust::find(res.snd().data().begin(), res.snd().data().end(), 5.0f) != res.snd().data().end());
+
+  //std::cout << "res.fst: "; thrust::copy(res.fst().data().begin(), res.fst().data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+  //std::cout << "res.snd: "; thrust::copy(res.snd().data().begin(), res.snd().data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
+
+}
+
+void tests() {
+  std::cout << "--- test_sum ---" << std::endl;
+  test_sum();
+  std::cout << "--- test_back_permute_1 ---" << std::endl;
+  test_back_permute_1();
+  std::cout << "--- test_back_permute_2 ---" << std::endl;
+  test_back_permute_2();
+  std::cout << "--- test_binop_array ---" << std::endl;
+  test_binop_array();
+  std::cout << "--- test_sum_lifted ---" << std::endl;
+  test_sum_lifted();
+  std::cout << "--- test_smvm ---" << std::endl;
+  test_smvm();
+  std::cout << "--- test_flag_split ---" << std::endl;
+  test_flag_split();
+  printf("OK!");
+}
+
+// ----- tests -----
+
+int main() {
+  tests();
+}
