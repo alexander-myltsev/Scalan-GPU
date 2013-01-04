@@ -114,7 +114,7 @@ trait GpuGen extends GenericCodegen {
         stream.println("base_array<bool> " + quote(s) + " = binop_array_equal(" + quote(ebaEq.a) + ", " + quote(ebaEq.b) + ");")
 
       case (flgSplt: FlagSplit[_]) =>
-        stream.println("pair<base_array<float>, base_array<float> > " + quote(s) + " = " + quote(flgSplt.arr) + ".flag_split(" + quote(flgSplt.flags) + ");");
+        stream.println("pair<base_array<bool>, base_array<bool> > " + quote(s) + " = " + quote(flgSplt.arr) + ".flag_split(" + quote(flgSplt.flags) + ");");
 
       case (notLg: Not) =>
         stream.println("bool " + quote(s) + " = !(" + quote(notLg.lhs) + ");")

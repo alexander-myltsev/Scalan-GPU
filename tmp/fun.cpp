@@ -643,12 +643,6 @@ void tests() {
 
 // ----- tests -----
 
-int main() {
-  tests();
-}
-
-// ----------------------------------------
-
 base_array<int> fun(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
 // First(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])
 pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
@@ -712,6 +706,87 @@ base_array<int> x45 = x44.fst();
 base_array<int> x36 = x21.expand_by(x34);
 // FlagSplit(Sym(36),Sym(43))
 pair<base_array<float>, base_array<float> > x47 = x36.flag_split(x43);
+// First(Sym(47))
+base_array<int> x48 = x47.fst();
+// PairArray(Sym(45),Sym(48))
+pair_array<int, int> x50(x45, x48);
+// WritePA(Sym(38),Sym(50))
+base_array<int> x54 = x38.write_pa(x50);
+// IfArray(Sym(32),Sym(15),Sym(54),)
+base_array<int> x62;
+if (x32) x62 = x15 else x62 = x54;
+return x62;
+}
+
+int main() {
+  tests();
+}
+
+// ----------------------------------------
+
+base_array<int> fun(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
+// First(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])
+pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
+// First(Sym(12))
+pair<nested_array<int>, base_array<int>> x14 = x12.fst();
+// Second(Sym(14))
+base_array<int> x17 = x14.snd();
+// LengthPA(Sym(17))
+int x18 = x17.length();
+// Const(0)
+int x1 = 0;
+// Equal(Sym(18),Sym(1))
+bool x19 = x18 == x1;
+// VarPA(Sym(17))
+base_array<int> x21 = x17;
+// Second(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])
+int x13 = x10.snd();
+// ReplicatePA(Sym(18),Sym(13))
+base_array<int> x20 = base_array<int>(x18, x13);
+// ExpBinopArrayEquals(Sym(21),Sym(20))
+base_array<bool> x22 = binop_array_equal(x21, x20);
+// FlagSplit(Sym(22),Sym(22))
+pair<base_array<bool>, base_array<bool> > x26 = x22.flag_split(x22);
+// First(Sym(26))
+base_array<bool> x27 = x26.fst();
+// LengthPA(Sym(27))
+int x29 = x27.length();
+// Equal(Sym(29),Sym(1))
+bool x30 = x29 == x1;
+// Not(Sym(30))
+bool x31 = !(x30);
+// Or(Sym(19),Sym(31))
+bool x32 = (x19||x31);
+// Second(Sym(12))
+base_array<int> x15 = x12.snd();
+// VarPA(Sym(15))
+base_array<int> x38 = x15;
+// First(Sym(14))
+nested_array<int> x16 = x14.fst();
+// VarPA(Sym(16))
+nested_array<int> x33 = x16;
+// BackPermute(Sym(33),Sym(17))
+nested_array<int> x34 = x33.back_permute(x17);
+// NestedArrayValues(Sym(34))
+nested_array<int> x35 = x34.values();
+// BackPermute(Sym(38),Sym(35))
+base_array<int> x39 = x38.back_permute(x35);
+// LengthPA(Sym(39))
+int x40 = x39.length();
+// Const(-1)
+int x41 = -1;
+// ReplicatePA(Sym(40),Sym(41))
+base_array<int> x42 = base_array<int>(x40, x41);
+// ExpBinopArrayEquals(Sym(39),Sym(42))
+base_array<bool> x43 = binop_array_equal(x39, x42);
+// FlagSplit(Sym(35),Sym(43))
+pair<base_array<bool>, base_array<bool> > x44 = x35.flag_split(x43);
+// First(Sym(44))
+base_array<int> x45 = x44.fst();
+// ExpandBy(Sym(21),Sym(34))
+base_array<int> x36 = x21.expand_by(x34);
+// FlagSplit(Sym(36),Sym(43))
+pair<base_array<bool>, base_array<bool> > x47 = x36.flag_split(x43);
 // First(Sym(47))
 base_array<int> x48 = x47.fst();
 // PairArray(Sym(45),Sym(48))

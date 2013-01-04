@@ -27,6 +27,15 @@ using std::string;
 
 //#define DEBUG
 
+template <class T>
+void print_vector(char *msg, const device_vector<T>& d_v) {
+  printf("%s :", msg);
+  for (int i = 0; i < d_v.size(); i++) {
+    std::cout << d_v[i] << " ";
+  }
+  printf('\n');
+}
+
 namespace scalan_thrust {
   template <class T> class nested_array;
   template <class T1, class T2> class pair_array;
@@ -91,8 +100,9 @@ namespace scalan_thrust {
   template <class T>
   class parray {
   public:
-    virtual int length() const { return -1; }; // TODO: Make it pure function
+    virtual int length() const { return -1; } // TODO: Make it pure function
     virtual device_vector<T> const& data() const = 0;
+    virtual void print() { printf("Not implemented\n"); }
   };  
 
   template <class T>
@@ -140,7 +150,7 @@ namespace scalan_thrust {
       return res;
     }
 
-    void print() {
+    virtual void print() {
       std::cout << "base_array: ";
       for (int i = 0; i < m_data.size(); i++) {
         std::cout << m_data[i] << " ";
@@ -269,7 +279,19 @@ namespace scalan_thrust {
     //parray<T> map(const unary_operation<T>& op) {
     //  return m_values;
     //}
-  };
+
+    nested_array<T> back_permute(const base_array<int>& idxs) { // NOTE: Can idxs be not base_array but PA?
+      return *this;
+    }
+
+    virtual void print() {
+      printf("values: ");
+      values().print();
+      printf("segments: ");
+      m_segments.print();
+    }
+      
+  }; // class nested_array<T>
   
   template <class T1, class T2>
   class nested_array <pair<T1, T2> > {
@@ -616,6 +638,24 @@ void test_write_pa() {
   assert(res.data()[4] == 7);
 }
 
+void test_nested_arr_backpermute() {
+  device_vector<float> d_vals(6);
+  d_vals[0] = 1; d_vals[1] = 2; d_vals[2] = 3; d_vals[3] = 4; d_vals[4] = 5; d_vals[5] = 6;
+  device_vector<int> d_segs(3);
+  d_segs[0] = 3; d_segs[1] = 1; d_segs[2] = 2;
+  // NOTE: Why 'nested_array<float> na(&base_array<float>(d_vals), base_array<int>(d_segs));' has empty d_vals?
+  base_array<float> vals(d_vals);
+  nested_array<float> na(&vals, base_array<int>(d_segs));
+
+  device_vector<int> d_permutation(3);
+  d_permutation[0] = 2; d_permutation[1] = 0; d_permutation[2] = 1;
+  base_array<int> permutation(d_permutation);
+
+  nested_array<float> na_permuted = na.back_permute(permutation);
+
+  na_permuted.print();
+}
+
 void tests() {
   std::cout << "--- test_sum ---" << std::endl;
   test_sum();
@@ -635,6 +675,8 @@ void tests() {
   test_base_array_expand_by();
   std::cout << "--- test_write_pa --- " << std::endl;
   test_write_pa();
+  std::cout << "--- test_nested_arr_backpermute --- " << std::endl;
+  test_nested_arr_backpermute();
   printf("OK!");
 }
 
