@@ -40,7 +40,8 @@ trait GpuGen extends GenericCodegen {
     stream.println("// " + rhs)
     rhs match {
       case (c: Const[_]) =>
-      //stream.println(quote(s) + " = const(" + c.x + ")")
+        val typ = "int"
+        stream.println(typ + " " + quote(s) + " = " + c.x + ";")
 
       case (vpa: VarPA[_]) =>
         val typ = remap(vpa.a.Elem.manifest)
@@ -130,7 +131,8 @@ trait GpuGen extends GenericCodegen {
         stream.println("pair_array<int, int> " + quote(s) + "(" + quote(pairArr.a) + ", " + quote(pairArr.b) + ");")
 
       case (wrt: WritePA[_]) =>
-        stream.println("???")
+        // TODO: Generalize from base_array<int>
+        stream.println("base_array<int> " + quote(s) + " = " + quote(wrt.a) + ".write_pa(" + quote(wrt.vals) + ");")
 
       case (ifArr: ExpIfArray[_]) =>
         val typ = "base_array<int>"

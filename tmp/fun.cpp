@@ -32,6 +32,7 @@ using std::string;
 
 namespace scalan_thrust {
   template <class T> class nested_array;
+  template <class T1, class T2> class pair_array;
 
   /*
   // NOTE: This doesn't work. nvcc doesn't compile virtual functions.
@@ -175,6 +176,45 @@ namespace scalan_thrust {
       return base_array<T>(expanded_values);
     }
 
+    template <class T>
+    struct write_pa_functor {
+      __host__ __device__ 
+      T operator()(thrust::tuple<T, T> t) {
+	T x, y;
+	thrust::tie(x, y) = t;
+	return y == 0 ? x : y;
+      }
+    };
+
+    base_array<T> write_pa(const pair_array<int, T>& vals) {
+      assert(*thrust::max_element(vals.first().data().begin(), vals.first().data().end()) < this->length());
+
+      device_vector<T> d_vals(vals.second().data());
+      device_vector<int> d_idxs(vals.first().data());
+
+      thrust::sort_by_key(d_idxs.begin(), d_idxs.end(), d_vals.begin());
+      
+      //std::cout << ">>>: "; thrust::copy(d_vals.begin(), d_vals.end(), std::ostream_iterator<T>(std::cout, " ")); std::cout << std::endl;
+      //std::cout << ">>>: "; thrust::copy(d_idxs.begin(), d_idxs.end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
+
+      device_vector<T> d_vals_inplaces(this->length());
+      thrust::scatter
+	(d_vals.begin(), d_vals.end(),
+	 d_idxs.begin(),
+	 d_vals_inplaces.begin());
+      //std::cout << ">>>: "; thrust::copy(d_vals_inplaces.begin(), d_vals_inplaces.end(), std::ostream_iterator<T>(std::cout, " ")); std::cout << std::endl;
+
+      device_vector<T> res(this->data());
+      thrust::transform
+	(thrust::make_zip_iterator(thrust::make_tuple(res.begin(), d_vals_inplaces.begin())),
+	 thrust::make_zip_iterator(thrust::make_tuple(res.end(), d_vals_inplaces.end())),
+	 res.begin(),
+	 write_pa_functor<T>());
+
+      base_array<T> a(res);
+      //a.print();
+      return a;
+    }
   }; // class base_array<T>
   
   template <class T>
@@ -556,6 +596,29 @@ void test_base_array_expand_by() {
   assert(r.data()[3] == 3);
 }
 
+void test_write_pa() {
+  device_vector<float> d_input(5);
+  d_input[0] = 1.0f; d_input[1] = 2.0f; d_input[2] = 0.0f; d_input[3] = 0.0f; d_input[4] = 5.0f;
+  base_array<float> input(d_input);
+
+  device_vector<float> d_vals(3);
+  d_vals[0] = 7.0f; d_vals[1] = 8.0f; d_vals[2] = 9.0f;
+  device_vector<int> d_idxs(3);
+  d_idxs[0] = 4; d_idxs[1] = 1; d_idxs[2] = 2;
+  base_array<int> idxs(d_idxs);
+  base_array<float> vals(d_vals);
+  pair_array<int, float> vals_idxs(idxs, vals);
+  
+  base_array<float> res = input.write_pa(vals_idxs);
+
+  //std::cout << "res: "; res.print();
+  assert(res.data()[0] == 1);
+  assert(res.data()[1] == 8);
+  assert(res.data()[2] == 9);
+  assert(res.data()[3] == 0);
+  assert(res.data()[4] == 7);
+}
+
 void tests() {
   std::cout << "--- test_sum ---" << std::endl;
   test_sum();
@@ -573,6 +636,8 @@ void tests() {
   test_flag_split();
   std::cout << "--- test_base_array_expand_by --- " << std::endl;
   test_base_array_expand_by();
+  std::cout << "--- test_write_pa --- " << std::endl;
+  test_write_pa();
   printf("OK!");
 }
 
@@ -594,6 +659,7 @@ base_array<int> x17 = x14.snd();
 // LengthPA(Sym(17))
 int x18 = x17.length();
 // Const(0)
+int x1 = 0;
 // Equal(Sym(18),Sym(1))
 bool x19 = x18 == x1;
 // VarPA(Sym(17))
@@ -633,6 +699,7 @@ base_array<int> x39 = x38.back_permute(x35);
 // LengthPA(Sym(39))
 int x40 = x39.length();
 // Const(-1)
+int x41 = -1;
 // ReplicatePA(Sym(40),Sym(41))
 base_array<int> x42 = base_array<int>(x40, x41);
 // ExpBinopArrayEquals(Sym(39),Sym(42))
@@ -650,7 +717,7 @@ base_array<int> x48 = x47.fst();
 // PairArray(Sym(45),Sym(48))
 pair_array<int, int> x50(x45, x48);
 // WritePA(Sym(38),Sym(50))
-???
+base_array<int> x54 = x38.write_pa(x50);
 // IfArray(Sym(32),Sym(15),Sym(54),)
 base_array<int> x62;
 if (x32) x62 = x15 else x62 = x54;
