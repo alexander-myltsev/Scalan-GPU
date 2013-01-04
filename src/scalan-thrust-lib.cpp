@@ -261,16 +261,16 @@ namespace scalan_thrust {
   template <class T>
   class nested_array {
   private:
-    parray<T>* m_values; // TODO: Make const and * combination as so: can change pointer but not values
+    base_array<T>* m_values; //parray<T>* m_values; // TODO: Make const and * combination as so: can change pointer but not values
     base_array<int> m_segments;
   public:
     nested_array() : m_values(), m_segments() { }    
-    nested_array(parray<T>* values, const base_array<int>& segments) : m_segments(segments) { 
+    nested_array(/*parray<T>**/ base_array<T>* values, const base_array<int>& segments) : m_segments(segments) { 
       m_values = values; // TODO: Why polymorphism doesn't work for 'm_values = (const parray<T>& values)'?
     }
   
     base_array<int> const& segments() const { return m_segments; }
-    parray<T>& values() const { return *m_values; }
+    /*parray<T>&*/ base_array<T>& values() const { return *m_values; }
     virtual int length() const { return segments().length(); }
       
     //base_array<T> map(const unary_operation<T>& op) {

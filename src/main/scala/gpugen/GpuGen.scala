@@ -69,7 +69,7 @@ trait GpuGen extends GenericCodegen {
         stream.println(typ + " " + quote(s) + " = binop_array(" + quote(ba.lhs) + ", " + quote(ba.rhs) + ");")
 
       case (nav: NestedArrayValues[_]) =>
-        val typ = remap(nav.nested.Elem.manifest)
+        val typ = "base_array<int>"//remap(nav.nested.Elem.manifest)
         stream.println(typ + " " + quote(s) + " = " + quote(nav.nested) + ".values();")
 
       case (nas: NestedArraySegments[_]) =>
@@ -114,7 +114,9 @@ trait GpuGen extends GenericCodegen {
         stream.println("base_array<bool> " + quote(s) + " = binop_array_equal(" + quote(ebaEq.a) + ", " + quote(ebaEq.b) + ");")
 
       case (flgSplt: FlagSplit[_]) =>
-        stream.println("pair<base_array<bool>, base_array<bool> > " + quote(s) + " = " + quote(flgSplt.arr) + ".flag_split(" + quote(flgSplt.flags) + ");");
+        val typ1 = remap(flgSplt.arr.Elem.manifest)
+        val typ = "pair<" + typ1 + ", " + typ1 + ">"
+        stream.println(typ + quote(s) + " = " + quote(flgSplt.arr) + ".flag_split(" + quote(flgSplt.flags) + ");");
 
       case (notLg: Not) =>
         stream.println("bool " + quote(s) + " = !(" + quote(notLg.lhs) + ");")
@@ -137,7 +139,7 @@ trait GpuGen extends GenericCodegen {
       case (ifArr: ExpIfArray[_]) =>
         val typ = "base_array<int>"
         stream.println(typ + " " + quote(s) + ";")
-        stream.println("if (" + quote(ifArr.cond) + ") " + quote(s) + " = " + quote(ifArr.thenp) + " else " + quote(s) + " = " + quote(ifArr.elsep) + ";")
+        stream.println("if (" + quote(ifArr.cond) + ") " + quote(s) + " = " + quote(ifArr.thenp) + "; else " + quote(s) + " = " + quote(ifArr.elsep) + ";")
 
       case _ => super.emitNode(s, rhs)
     }
