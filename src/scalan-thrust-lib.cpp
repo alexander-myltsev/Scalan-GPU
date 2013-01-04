@@ -297,24 +297,24 @@ namespace scalan_thrust {
       device_vector<int> segs_idxs(length());
       thrust::exclusive_scan(segments().data().begin(), segments().data().end(),
 			     segs_idxs.begin()); // segs_idxs: [0,3,3,4]
-      print_vector("segs_idxs", segs_idxs);
+      //print_vector("segs_idxs", segs_idxs);
 
       device_vector<int> segs_idxs_permuted(length());
       thrust::gather(idxs.data().begin(), idxs.data().end(),
 		     segs_idxs.begin(),
 		     segs_idxs_permuted.begin()); // segs_idxs_permuted: [4,0,3,3]
-      print_vector("segs_idxs_permuted", segs_idxs_permuted);
+      //print_vector("segs_idxs_permuted", segs_idxs_permuted);
 
       device_vector<int> segs_permuted(length());
       thrust::gather(idxs.data().begin(), idxs.data().end(),
 		     segments().data().begin(),
 		     segs_permuted.begin()); // segs_permuted: [2,3,0,1]
-      print_vector("segs_permuted", segs_permuted);
+      //print_vector("segs_permuted", segs_permuted);
 
       device_vector<int> segs_permuted_idxs(length());
       thrust::exclusive_scan(segs_permuted.begin(), segs_permuted.end(), 
 			     segs_permuted_idxs.begin()); // segs_permuted_idxs: [0,2,5,5]
-      print_vector("segs_permuted_idxs", segs_permuted_idxs);
+      //print_vector("segs_permuted_idxs", segs_permuted_idxs);
 
       device_vector<int> vals_idxs_permutation(values().length(), -1);
       thrust::scatter_if
@@ -322,20 +322,20 @@ namespace scalan_thrust {
 	 segs_permuted_idxs.begin(),
 	 segs_permuted.begin(),
 	 vals_idxs_permutation.begin()); // vals_idxs_permutation: [4,-1,0,-1,-1,3]
-      print_vector("vals_idxs_permutation", vals_idxs_permutation);
+      //print_vector("vals_idxs_permutation", vals_idxs_permutation);
       
       device_vector<int> vals_idxs_permutation1(values().length());
       thrust::inclusive_scan
 	(vals_idxs_permutation.begin(), vals_idxs_permutation.end(),
 	 vals_idxs_permutation1.begin(),
 	 back_permute_functor());
-      print_vector("vals_idxs_permutation1", vals_idxs_permutation1);
+      //print_vector("vals_idxs_permutation1", vals_idxs_permutation1);
       
       device_vector<T> vals_permuted(values().length());
       thrust::gather(vals_idxs_permutation1.begin(), vals_idxs_permutation1.end(),
 		     values().data().begin(),
 		     vals_permuted.begin());
-      print_vector("vals_permuted", vals_permuted);
+      //print_vector("vals_permuted", vals_permuted);
 		      
       base_array<T> *vals_ba = new base_array<T>(vals_permuted);
       base_array<int> *segs_ba = new base_array<int>(segs_permuted);
@@ -669,10 +669,10 @@ void test_base_array_expand_by() {
 
   //std::cout << "r: "; thrust::copy(r.data().begin(), r.data().end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
 
-  assert(r.data()[0] == 1);
-  assert(r.data()[1] == 2);
-  assert(r.data()[2] == 2);
-  assert(r.data()[3] == 3);
+  assert(FLOAT_EQ(r.data()[0], 1.0f));
+  assert(FLOAT_EQ(r.data()[1], 2.0f));
+  assert(FLOAT_EQ(r.data()[2], 2.0f));
+  assert(FLOAT_EQ(r.data()[3], 3.0f));
 }
 
 void test_write_pa() {
@@ -691,11 +691,11 @@ void test_write_pa() {
   base_array<float> res = input.write_pa(vals_idxs);
 
   //std::cout << "res: "; res.print();
-  assert(res.data()[0] == 1);
-  assert(res.data()[1] == 8);
-  assert(res.data()[2] == 9);
-  assert(res.data()[3] == 0);
-  assert(res.data()[4] == 7);
+  assert(FLOAT_EQ(res.data()[0], 1.0f));
+  assert(FLOAT_EQ(res.data()[1], 8.0f));
+  assert(FLOAT_EQ(res.data()[2], 9.0f));
+  assert(FLOAT_EQ(res.data()[3], 0.0f));
+  assert(FLOAT_EQ(res.data()[4], 7.0f));
 }
 
 void test_nested_arr_backpermute() {
@@ -713,7 +713,18 @@ void test_nested_arr_backpermute() {
 
   nested_array<float> na_permuted = na.back_permute(permutation);
 
-  na_permuted.print();
+  //na_permuted.print();
+  assert(FLOAT_EQ(na_permuted.values().data()[0], 5.0f));
+  assert(FLOAT_EQ(na_permuted.values().data()[1], 6.0f));
+  assert(FLOAT_EQ(na_permuted.values().data()[2], 1.0f));
+  assert(FLOAT_EQ(na_permuted.values().data()[3], 2.0f));
+  assert(FLOAT_EQ(na_permuted.values().data()[4], 3.0f));
+  assert(FLOAT_EQ(na_permuted.values().data()[5], 4.0f));
+
+  assert(na_permuted.segments().data()[0] == 2);
+  assert(na_permuted.segments().data()[1] == 3);
+  assert(na_permuted.segments().data()[2] == 0);
+  assert(na_permuted.segments().data()[3] == 1);
 }
 
 void tests() {
