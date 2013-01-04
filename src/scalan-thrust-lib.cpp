@@ -29,11 +29,9 @@ using std::string;
 
 template <class T>
 void print_vector(char *msg, const device_vector<T>& d_v) {
-  printf("%s :", msg);
-  for (int i = 0; i < d_v.size(); i++) {
-    std::cout << d_v[i] << " ";
-  }
-  printf('\n');
+  std::cout << msg << ": ";
+  thrust::copy(d_v.begin(), d_v.end(), std::ostream_iterator<T>(std::cout, " "));
+  std::cout << std::endl;
 }
 
 namespace scalan_thrust {
@@ -175,7 +173,7 @@ namespace scalan_thrust {
     }
 
     template <class B>
-    base_array<T> expand_by(nested_array<B> nested_arr) {
+    base_array<T> expand_by(const nested_array<B>& nested_arr) const {
       device_vector<int> expanded_indxs(nested_arr.values().length());
       device_vector<T> expanded_values(nested_arr.values().length());
       expand(nested_arr.segments().data().begin(), nested_arr.segments().data().end(), expanded_indxs.begin());
@@ -280,15 +278,77 @@ namespace scalan_thrust {
     //  return m_values;
     //}
 
+    struct back_permute_functor {
+      __host__ __device__
+      int operator()(int x, int y) {
+	return y == -1 ? x + 1 : y;
+      }
+    };
+
     nested_array<T> back_permute(const base_array<int>& idxs) { // NOTE: Can idxs be not base_array but PA?
-      return *this;
+      assert(idxs.length() == length());
+
+      // this: [[a,b,c],[],[d],[e,f]]
+      // values: [a,b,c,d,e,f]
+      // segs: [3,0,1,2]
+      // idxs: [3,0,1,2]
+      // res: [[e,f],[a,b,c],[],[d]]
+
+      device_vector<int> segs_idxs(length());
+      thrust::exclusive_scan(segments().data().begin(), segments().data().end(),
+			     segs_idxs.begin()); // segs_idxs: [0,3,3,4]
+      print_vector("segs_idxs", segs_idxs);
+
+      device_vector<int> segs_idxs_permuted(length());
+      thrust::gather(idxs.data().begin(), idxs.data().end(),
+		     segs_idxs.begin(),
+		     segs_idxs_permuted.begin()); // segs_idxs_permuted: [4,0,3,3]
+      print_vector("segs_idxs_permuted", segs_idxs_permuted);
+
+      device_vector<int> segs_permuted(length());
+      thrust::gather(idxs.data().begin(), idxs.data().end(),
+		     segments().data().begin(),
+		     segs_permuted.begin()); // segs_permuted: [2,3,0,1]
+      print_vector("segs_permuted", segs_permuted);
+
+      device_vector<int> segs_permuted_idxs(length());
+      thrust::exclusive_scan(segs_permuted.begin(), segs_permuted.end(), 
+			     segs_permuted_idxs.begin()); // segs_permuted_idxs: [0,2,5,5]
+      print_vector("segs_permuted_idxs", segs_permuted_idxs);
+
+      device_vector<int> vals_idxs_permutation(values().length(), -1);
+      thrust::scatter_if
+	(segs_idxs_permuted.begin(), segs_idxs_permuted.end(),
+	 segs_permuted_idxs.begin(),
+	 segs_permuted.begin(),
+	 vals_idxs_permutation.begin()); // vals_idxs_permutation: [4,-1,0,-1,-1,3]
+      print_vector("vals_idxs_permutation", vals_idxs_permutation);
+      
+      device_vector<int> vals_idxs_permutation1(values().length());
+      thrust::inclusive_scan
+	(vals_idxs_permutation.begin(), vals_idxs_permutation.end(),
+	 vals_idxs_permutation1.begin(),
+	 back_permute_functor());
+      print_vector("vals_idxs_permutation1", vals_idxs_permutation1);
+      
+      device_vector<T> vals_permuted(values().length());
+      thrust::gather(vals_idxs_permutation1.begin(), vals_idxs_permutation1.end(),
+		     values().data().begin(),
+		     vals_permuted.begin());
+      print_vector("vals_permuted", vals_permuted);
+		      
+      base_array<T> *vals_ba = new base_array<T>(vals_permuted);
+      base_array<int> *segs_ba = new base_array<int>(segs_permuted);
+      return nested_array<T>(vals_ba, *segs_ba);
     }
 
     virtual void print() {
-      printf("values: ");
+      printf("nested_array: [\n");
+      printf("values-> ");
       values().print();
-      printf("segments: ");
+      printf("segments-> ");
       m_segments.print();
+      printf("]\n");
     }
       
   }; // class nested_array<T>
@@ -641,14 +701,14 @@ void test_write_pa() {
 void test_nested_arr_backpermute() {
   device_vector<float> d_vals(6);
   d_vals[0] = 1; d_vals[1] = 2; d_vals[2] = 3; d_vals[3] = 4; d_vals[4] = 5; d_vals[5] = 6;
-  device_vector<int> d_segs(3);
-  d_segs[0] = 3; d_segs[1] = 1; d_segs[2] = 2;
+  device_vector<int> d_segs(4);
+  d_segs[0] = 3; d_segs[1] = 0; d_segs[2] = 1; d_segs[3] = 2;
   // NOTE: Why 'nested_array<float> na(&base_array<float>(d_vals), base_array<int>(d_segs));' has empty d_vals?
   base_array<float> vals(d_vals);
   nested_array<float> na(&vals, base_array<int>(d_segs));
 
-  device_vector<int> d_permutation(3);
-  d_permutation[0] = 2; d_permutation[1] = 0; d_permutation[2] = 1;
+  device_vector<int> d_permutation(4);
+  d_permutation[0] = 3; d_permutation[1] = 0; d_permutation[2] = 1; d_permutation[3] = 2;
   base_array<int> permutation(d_permutation);
 
   nested_array<float> na_permuted = na.back_permute(permutation);
