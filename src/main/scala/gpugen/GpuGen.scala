@@ -37,7 +37,6 @@ trait GpuGen extends GenericCodegen {
   }
 
   override def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
-    stream.println("// " + rhs)
     rhs match {
       case (c: Const[_]) =>
         val typ = "int"
@@ -143,6 +142,7 @@ trait GpuGen extends GenericCodegen {
 
       case _ => super.emitNode(s, rhs)
     }
+    stream.println("std::cout << \"" + quote(s) + "\" << std::endl << \"" + rhs + "\" << std::endl << " + quote(s) + " << std::endl << \"---------\" << std::endl;")
   }
 
   def remapOp(op: String) = op match {

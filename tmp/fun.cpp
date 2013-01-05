@@ -38,8 +38,15 @@ void print_vector(char *msg, const device_vector<T>& d_v) {
 }
 
 namespace scalan_thrust {
+  template <class T> class parray;
   template <class T> class nested_array;
   template <class T1, class T2> class pair_array;
+
+  template <class T>
+  std::ostream& operator << (std::ostream& out, const parray<T>& parr) {
+    parr.print();
+    return out;
+  }
 
   /*
   // NOTE: This doesn't work. nvcc doesn't compile virtual functions.
@@ -103,7 +110,7 @@ namespace scalan_thrust {
   public:
     virtual int length() const { return -1; } // TODO: Make it pure function
     virtual device_vector<T> const& data() const = 0;
-    virtual void print() { printf("Not implemented\n"); }
+    virtual void print() const { printf("Not implemented\n"); }
   };  
 
   template <class T>
@@ -151,7 +158,7 @@ namespace scalan_thrust {
       return res;
     }
 
-    virtual void print() {
+    virtual void print() const {
       std::cout << "base_array: ";
       for (int i = 0; i < m_data.size(); i++) {
         std::cout << m_data[i] << " ";
@@ -262,7 +269,7 @@ namespace scalan_thrust {
   };
   
   template <class T>
-  class nested_array {
+  class nested_array : public parray<T> {
   private:
     base_array<T>* m_values; //parray<T>* m_values; // TODO: Make const and * combination as so: can change pointer but not values
     base_array<int> m_segments;
@@ -275,6 +282,7 @@ namespace scalan_thrust {
     base_array<int> const& segments() const { return m_segments; }
     /*parray<T>&*/ base_array<T>& values() const { return *m_values; }
     virtual int length() const { return segments().length(); }
+	virtual device_vector<T> const& data() const { return values().data(); }
       
     //base_array<T> map(const unary_operation<T>& op) {
     //parray<T> map(const unary_operation<T>& op) {
@@ -345,7 +353,7 @@ namespace scalan_thrust {
       return nested_array<T>(vals_ba, *segs_ba);
     }
 
-    virtual void print() {
+    virtual void print() const {
       printf("nested_array: [\n");
       printf("values-> ");
       values().print();
@@ -462,8 +470,14 @@ namespace scalan_thrust {
     thrust::scatter(res_values.begin(), res_values.end(), 
                     segs_keys.begin(), res.begin());
     return base_array<float>(res);
+  }  
+
+  template <class T1, class T2>
+  std::ostream& operator << (std::ostream& out, const pair<T1, T2>& pr) {
+    out << "Pair(" << pr.fst() << "; " << pr.snd() << ")";
+    return out;
   }
-}
+} // namespace scalan_thrust
 
 using scalan_thrust::nested_array;
 using scalan_thrust::base_array;
@@ -692,7 +706,7 @@ void test_write_pa() {
   pair_array<int, float> vals_idxs(idxs, vals);
   
   base_array<float> res = input.write_pa(vals_idxs);
-
+  
   //std::cout << "res: "; res.print();
   assert(FLOAT_EQ(res.data()[0], 1.0f));
   assert(FLOAT_EQ(res.data()[1], 8.0f));
@@ -756,83 +770,189 @@ void tests() {
 
 // ----- tests -----
 
+base_array<int> fun(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
+pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
+std::cout << "x12" << std::endl << "First(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])" << x12 << std::endl << "---------" << std::endl;
+pair<nested_array<int>, base_array<int>> x14 = x12.fst();
+std::cout << "x14" << std::endl << "First(Sym(12))" << x14 << std::endl << "---------" << std::endl;
+base_array<int> x17 = x14.snd();
+std::cout << "x17" << std::endl << "Second(Sym(14))" << x17 << std::endl << "---------" << std::endl;
+int x18 = x17.length();
+std::cout << "x18" << std::endl << "LengthPA(Sym(17))" << x18 << std::endl << "---------" << std::endl;
+int x1 = 0;
+std::cout << "x1" << std::endl << "Const(0)" << x1 << std::endl << "---------" << std::endl;
+bool x19 = x18 == x1;
+std::cout << "x19" << std::endl << "Equal(Sym(18),Sym(1))" << x19 << std::endl << "---------" << std::endl;
+base_array<int> x21 = x17;
+std::cout << "x21" << std::endl << "VarPA(Sym(17))" << x21 << std::endl << "---------" << std::endl;
+int x13 = x10.snd();
+std::cout << "x13" << std::endl << "Second(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])" << x13 << std::endl << "---------" << std::endl;
+base_array<int> x20 = base_array<int>(x18, x13);
+std::cout << "x20" << std::endl << "ReplicatePA(Sym(18),Sym(13))" << x20 << std::endl << "---------" << std::endl;
+base_array<bool> x22 = binop_array_equal(x21, x20);
+std::cout << "x22" << std::endl << "ExpBinopArrayEquals(Sym(21),Sym(20))" << x22 << std::endl << "---------" << std::endl;
+pair<base_array<bool>, base_array<bool>>x26 = x22.flag_split(x22);
+std::cout << "x26" << std::endl << "FlagSplit(Sym(22),Sym(22))" << x26 << std::endl << "---------" << std::endl;
+base_array<bool> x27 = x26.fst();
+std::cout << "x27" << std::endl << "First(Sym(26))" << x27 << std::endl << "---------" << std::endl;
+int x29 = x27.length();
+std::cout << "x29" << std::endl << "LengthPA(Sym(27))" << x29 << std::endl << "---------" << std::endl;
+bool x30 = x29 == x1;
+std::cout << "x30" << std::endl << "Equal(Sym(29),Sym(1))" << x30 << std::endl << "---------" << std::endl;
+bool x31 = !(x30);
+std::cout << "x31" << std::endl << "Not(Sym(30))" << x31 << std::endl << "---------" << std::endl;
+bool x32 = (x19||x31);
+std::cout << "x32" << std::endl << "Or(Sym(19),Sym(31))" << x32 << std::endl << "---------" << std::endl;
+base_array<int> x15 = x12.snd();
+std::cout << "x15" << std::endl << "Second(Sym(12))" << x15 << std::endl << "---------" << std::endl;
+base_array<int> x38 = x15;
+std::cout << "x38" << std::endl << "VarPA(Sym(15))" << x38 << std::endl << "---------" << std::endl;
+nested_array<int> x16 = x14.fst();
+std::cout << "x16" << std::endl << "First(Sym(14))" << x16 << std::endl << "---------" << std::endl;
+nested_array<int> x33 = x16;
+std::cout << "x33" << std::endl << "VarPA(Sym(16))" << x33 << std::endl << "---------" << std::endl;
+nested_array<int> x34 = x33.back_permute(x17);
+std::cout << "x34" << std::endl << "BackPermute(Sym(33),Sym(17))" << x34 << std::endl << "---------" << std::endl;
+base_array<int> x35 = x34.values();
+std::cout << "x35" << std::endl << "NestedArrayValues(Sym(34))" << x35 << std::endl << "---------" << std::endl;
+base_array<int> x39 = x38.back_permute(x35);
+std::cout << "x39" << std::endl << "BackPermute(Sym(38),Sym(35))" << x39 << std::endl << "---------" << std::endl;
+int x40 = x39.length();
+std::cout << "x40" << std::endl << "LengthPA(Sym(39))" << x40 << std::endl << "---------" << std::endl;
+int x41 = -1;
+std::cout << "x41" << std::endl << "Const(-1)" << x41 << std::endl << "---------" << std::endl;
+base_array<int> x42 = base_array<int>(x40, x41);
+std::cout << "x42" << std::endl << "ReplicatePA(Sym(40),Sym(41))" << x42 << std::endl << "---------" << std::endl;
+base_array<bool> x43 = binop_array_equal(x39, x42);
+std::cout << "x43" << std::endl << "ExpBinopArrayEquals(Sym(39),Sym(42))" << x43 << std::endl << "---------" << std::endl;
+pair<base_array<int>, base_array<int>>x44 = x35.flag_split(x43);
+std::cout << "x44" << std::endl << "FlagSplit(Sym(35),Sym(43))" << x44 << std::endl << "---------" << std::endl;
+base_array<int> x45 = x44.fst();
+std::cout << "x45" << std::endl << "First(Sym(44))" << x45 << std::endl << "---------" << std::endl;
+base_array<int> x36 = x21.expand_by(x34);
+std::cout << "x36" << std::endl << "ExpandBy(Sym(21),Sym(34))" << x36 << std::endl << "---------" << std::endl;
+pair<base_array<int>, base_array<int>>x47 = x36.flag_split(x43);
+std::cout << "x47" << std::endl << "FlagSplit(Sym(36),Sym(43))" << x47 << std::endl << "---------" << std::endl;
+base_array<int> x48 = x47.fst();
+std::cout << "x48" << std::endl << "First(Sym(47))" << x48 << std::endl << "---------" << std::endl;
+pair_array<int, int> x50(x45, x48);
+std::cout << "x50" << std::endl << "PairArray(Sym(45),Sym(48))" << x50 << std::endl << "---------" << std::endl;
+base_array<int> x54 = x38.write_pa(x50);
+std::cout << "x54" << std::endl << "WritePA(Sym(38),Sym(50))" << x54 << std::endl << "---------" << std::endl;
+base_array<int> x62;
+if (x32) x62 = x15; else x62 = x54;
+std::cout << "x62" << std::endl << "IfArray(Sym(32),Sym(15),Sym(54),)" << x62 << std::endl << "---------" << std::endl;
+return x62;
+}
+
+
+
+
 int main() {
   tests();
+
+  device_vector<int> d_segs(5);
+  d_segs[0] = 1; d_segs[1] = 3; d_segs[2] = 2; d_segs[3] = 1; d_segs[4] = 1;
+  device_vector<int> d_data(8);
+  d_data[0] = 1; d_data[1] = 0; d_data[2] = 2; d_data[3] = 3; d_data[4] = 1; d_data[5] = 4; d_data[6] = 1; d_data[7] = 2;
+  base_array<int> data(d_data);
+  base_array<int> segs(d_segs);
+  nested_array<int> graph(&data, segs);
+
+  device_vector<int> d_frontiers(1);
+  d_frontiers[0] = 1;
+  base_array<int> frontiers(d_frontiers);
+
+  device_vector<int> d_bfs_tree(5);
+  d_bfs_tree[0] = -1; d_bfs_tree[1] = 1; d_bfs_tree[2] = -1; d_bfs_tree[3] = -1; d_bfs_tree[4] = -1;
+  base_array<int> bfs_tree(d_bfs_tree);
+
+  int end_node = 4;
+
+  pair<nested_array<int>, base_array<int> > p1(graph, frontiers);
+  pair<pair<nested_array<int>, base_array<int> >, base_array<int> > p2(p1, bfs_tree);
+  pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int> input(p2, end_node);
+
+  std::cout << input << std::endl;
+
+  base_array<int> res = fun(input);
+
+  std::cout << res;
 }
 
 // ----------------------------------------
 
 base_array<int> fun(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
-// First(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])
 pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
-// First(Sym(12))
+std::cout << "x12" << std::endl << "First(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])" << std::endl << x12 << std::endl << "---------" << std::endl;
 pair<nested_array<int>, base_array<int>> x14 = x12.fst();
-// Second(Sym(14))
+std::cout << "x14" << std::endl << "First(Sym(12))" << std::endl << x14 << std::endl << "---------" << std::endl;
 base_array<int> x17 = x14.snd();
-// LengthPA(Sym(17))
+std::cout << "x17" << std::endl << "Second(Sym(14))" << std::endl << x17 << std::endl << "---------" << std::endl;
 int x18 = x17.length();
-// Const(0)
+std::cout << "x18" << std::endl << "LengthPA(Sym(17))" << std::endl << x18 << std::endl << "---------" << std::endl;
 int x1 = 0;
-// Equal(Sym(18),Sym(1))
+std::cout << "x1" << std::endl << "Const(0)" << std::endl << x1 << std::endl << "---------" << std::endl;
 bool x19 = x18 == x1;
-// VarPA(Sym(17))
+std::cout << "x19" << std::endl << "Equal(Sym(18),Sym(1))" << std::endl << x19 << std::endl << "---------" << std::endl;
 base_array<int> x21 = x17;
-// Second(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])
+std::cout << "x21" << std::endl << "VarPA(Sym(17))" << std::endl << x21 << std::endl << "---------" << std::endl;
 int x13 = x10.snd();
-// ReplicatePA(Sym(18),Sym(13))
+std::cout << "x13" << std::endl << "Second(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int])" << std::endl << x13 << std::endl << "---------" << std::endl;
 base_array<int> x20 = base_array<int>(x18, x13);
-// ExpBinopArrayEquals(Sym(21),Sym(20))
+std::cout << "x20" << std::endl << "ReplicatePA(Sym(18),Sym(13))" << std::endl << x20 << std::endl << "---------" << std::endl;
 base_array<bool> x22 = binop_array_equal(x21, x20);
-// FlagSplit(Sym(22),Sym(22))
+std::cout << "x22" << std::endl << "ExpBinopArrayEquals(Sym(21),Sym(20))" << std::endl << x22 << std::endl << "---------" << std::endl;
 pair<base_array<bool>, base_array<bool>>x26 = x22.flag_split(x22);
-// First(Sym(26))
+std::cout << "x26" << std::endl << "FlagSplit(Sym(22),Sym(22))" << std::endl << x26 << std::endl << "---------" << std::endl;
 base_array<bool> x27 = x26.fst();
-// LengthPA(Sym(27))
+std::cout << "x27" << std::endl << "First(Sym(26))" << std::endl << x27 << std::endl << "---------" << std::endl;
 int x29 = x27.length();
-// Equal(Sym(29),Sym(1))
+std::cout << "x29" << std::endl << "LengthPA(Sym(27))" << std::endl << x29 << std::endl << "---------" << std::endl;
 bool x30 = x29 == x1;
-// Not(Sym(30))
+std::cout << "x30" << std::endl << "Equal(Sym(29),Sym(1))" << std::endl << x30 << std::endl << "---------" << std::endl;
 bool x31 = !(x30);
-// Or(Sym(19),Sym(31))
+std::cout << "x31" << std::endl << "Not(Sym(30))" << std::endl << x31 << std::endl << "---------" << std::endl;
 bool x32 = (x19||x31);
-// Second(Sym(12))
+std::cout << "x32" << std::endl << "Or(Sym(19),Sym(31))" << std::endl << x32 << std::endl << "---------" << std::endl;
 base_array<int> x15 = x12.snd();
-// VarPA(Sym(15))
+std::cout << "x15" << std::endl << "Second(Sym(12))" << std::endl << x15 << std::endl << "---------" << std::endl;
 base_array<int> x38 = x15;
-// First(Sym(14))
+std::cout << "x38" << std::endl << "VarPA(Sym(15))" << std::endl << x38 << std::endl << "---------" << std::endl;
 nested_array<int> x16 = x14.fst();
-// VarPA(Sym(16))
+std::cout << "x16" << std::endl << "First(Sym(14))" << std::endl << x16 << std::endl << "---------" << std::endl;
 nested_array<int> x33 = x16;
-// BackPermute(Sym(33),Sym(17))
+std::cout << "x33" << std::endl << "VarPA(Sym(16))" << std::endl << x33 << std::endl << "---------" << std::endl;
 nested_array<int> x34 = x33.back_permute(x17);
-// NestedArrayValues(Sym(34))
+std::cout << "x34" << std::endl << "BackPermute(Sym(33),Sym(17))" << std::endl << x34 << std::endl << "---------" << std::endl;
 base_array<int> x35 = x34.values();
-// BackPermute(Sym(38),Sym(35))
+std::cout << "x35" << std::endl << "NestedArrayValues(Sym(34))" << std::endl << x35 << std::endl << "---------" << std::endl;
 base_array<int> x39 = x38.back_permute(x35);
-// LengthPA(Sym(39))
+std::cout << "x39" << std::endl << "BackPermute(Sym(38),Sym(35))" << std::endl << x39 << std::endl << "---------" << std::endl;
 int x40 = x39.length();
-// Const(-1)
+std::cout << "x40" << std::endl << "LengthPA(Sym(39))" << std::endl << x40 << std::endl << "---------" << std::endl;
 int x41 = -1;
-// ReplicatePA(Sym(40),Sym(41))
+std::cout << "x41" << std::endl << "Const(-1)" << std::endl << x41 << std::endl << "---------" << std::endl;
 base_array<int> x42 = base_array<int>(x40, x41);
-// ExpBinopArrayEquals(Sym(39),Sym(42))
+std::cout << "x42" << std::endl << "ReplicatePA(Sym(40),Sym(41))" << std::endl << x42 << std::endl << "---------" << std::endl;
 base_array<bool> x43 = binop_array_equal(x39, x42);
-// FlagSplit(Sym(35),Sym(43))
+std::cout << "x43" << std::endl << "ExpBinopArrayEquals(Sym(39),Sym(42))" << std::endl << x43 << std::endl << "---------" << std::endl;
 pair<base_array<int>, base_array<int>>x44 = x35.flag_split(x43);
-// First(Sym(44))
+std::cout << "x44" << std::endl << "FlagSplit(Sym(35),Sym(43))" << std::endl << x44 << std::endl << "---------" << std::endl;
 base_array<int> x45 = x44.fst();
-// ExpandBy(Sym(21),Sym(34))
+std::cout << "x45" << std::endl << "First(Sym(44))" << std::endl << x45 << std::endl << "---------" << std::endl;
 base_array<int> x36 = x21.expand_by(x34);
-// FlagSplit(Sym(36),Sym(43))
+std::cout << "x36" << std::endl << "ExpandBy(Sym(21),Sym(34))" << std::endl << x36 << std::endl << "---------" << std::endl;
 pair<base_array<int>, base_array<int>>x47 = x36.flag_split(x43);
-// First(Sym(47))
+std::cout << "x47" << std::endl << "FlagSplit(Sym(36),Sym(43))" << std::endl << x47 << std::endl << "---------" << std::endl;
 base_array<int> x48 = x47.fst();
-// PairArray(Sym(45),Sym(48))
+std::cout << "x48" << std::endl << "First(Sym(47))" << std::endl << x48 << std::endl << "---------" << std::endl;
 pair_array<int, int> x50(x45, x48);
-// WritePA(Sym(38),Sym(50))
+std::cout << "x50" << std::endl << "PairArray(Sym(45),Sym(48))" << std::endl << x50 << std::endl << "---------" << std::endl;
 base_array<int> x54 = x38.write_pa(x50);
-// IfArray(Sym(32),Sym(15),Sym(54),)
+std::cout << "x54" << std::endl << "WritePA(Sym(38),Sym(50))" << std::endl << x54 << std::endl << "---------" << std::endl;
 base_array<int> x62;
 if (x32) x62 = x15; else x62 = x54;
+std::cout << "x62" << std::endl << "IfArray(Sym(32),Sym(15),Sym(54),)" << std::endl << x62 << std::endl << "---------" << std::endl;
 return x62;
 }
