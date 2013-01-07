@@ -64,11 +64,8 @@ trait GpuArrayOperations extends ScalanStaged {
   type FrontierNodes = PArray[GraphNode]
   type BFSTree = PArray[GraphNode]
 
-  def pairFst[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(r, _) => r}
-  def pairSnd[A, B](x: Rep[Pair[A, B]]) = x match {case Pair(_, r) => r}
-
   def isEmpty[T](arr: PA[T]) = arr.length == 0
-  def any(arr: PA[Boolean]) = !isEmpty(pairFst(arr flagSplit arr))
+  def any(arr: PA[Boolean]) = !isEmpty((arr flagSplit arr)._1)
 
   lazy val breadthFirstSearch =
     letrec((bfs: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode)) => BFSTree]) =>
@@ -81,17 +78,18 @@ trait GpuArrayOperations extends ScalanStaged {
         val next2: PA[(GraphNode, GraphNode)] = {
           val t1 = bfsTree.backPermute(next1.fst)
           val t2 = t1 |==| replicate(t1.length, -1)
-          pairFst(next1 flagSplit t2)
+          (next1 flagSplit t2)._1
         }
 
         val bfsTree1: PA[GraphNode] = bfsTree <-- next2
 
         val next3: PA[GraphNode] = {
           val t1 = next2.snd |==| (bfsTree1.backPermute(next2.fst))
-          pairFst(next2.fst flagSplit t1)
+          (next2.fst flagSplit t1)._1
         }
 
-        bfsTree1
+        val input1: Rep[(((Graph, FrontierNodes), BFSTree), GraphNode)] = Pair(Pair(Pair(graph, next3), bfsTree1), endNode)
+        bfs(input1)
       }
     })
 
