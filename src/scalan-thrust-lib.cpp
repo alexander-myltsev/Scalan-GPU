@@ -27,14 +27,13 @@ using std::string;
 
 //#define DEBUG
 
-template <class T>
-void print_vector(char *msg, const device_vector<T>& d_v) {
-  std::cout << msg << ": ";
-  thrust::copy(d_v.begin(), d_v.end(), std::ostream_iterator<T>(std::cout, " "));
-  std::cout << std::endl;
-}
-
 namespace scalan_thrust {
+  template <class T>
+  std::ostream& operator << (std::ostream& out, const device_vector<T>& d_v) {
+    thrust::copy(d_v.begin(), d_v.end(), std::ostream_iterator<T>(out, " "));
+    return out;
+  }
+
   template <class T> class parray;
   template <class T> class nested_array;
   template <class T1, class T2> class pair_array;
@@ -255,6 +254,12 @@ namespace scalan_thrust {
     return base_array<bool>(res);
   }
 
+    // TODO: 
+  // Someday make it like:
+  // template <class PArr1, class PArr2>
+  // class pair_array : public parray<pair<PArr1::elem_type, PArr2::elem_type> > {
+  // private:
+  // PArr1 m_a;
   template <class T1, class T2>
   class pair_array : public parray<pair<T1, T2> > {
   private:
@@ -313,24 +318,24 @@ namespace scalan_thrust {
       device_vector<int> segs_idxs(idxs.length());
       thrust::exclusive_scan(segments().data().begin(), segments().data().end(),
         segs_idxs.begin()); // segs_idxs: [0,3,3]
-      print_vector("segs_idxs", segs_idxs);
+      std:: cout << "segs_idxs" << segs_idxs;
 
       device_vector<int> segs_idxs_permuted(idxs.length());
       thrust::gather(idxs.data().begin(), idxs.data().end(),
         segs_idxs.begin(),
         segs_idxs_permuted.begin()); // segs_idxs_permuted: [4,0,3]
-      print_vector("segs_idxs_permuted", segs_idxs_permuted);
+      std::cout << "segs_idxs_permuted" << segs_idxs_permuted;
 
       device_vector<int> segs_permuted(idxs.length());
       thrust::gather(idxs.data().begin(), idxs.data().end(),
         segments().data().begin(),
         segs_permuted.begin()); // segs_permuted: [2,3,0]
-      print_vector("segs_permuted", segs_permuted);
+      std::cout << "segs_permuted" << segs_permuted;
 
       device_vector<int> segs_permuted_idxs(idxs.length());
       thrust::exclusive_scan(segs_permuted.begin(), segs_permuted.end(), 
         segs_permuted_idxs.begin()); // segs_permuted_idxs: [0,2,5]
-      print_vector("segs_permuted_idxs", segs_permuted_idxs);
+      std::cout << "segs_permuted_idxs" << segs_permuted_idxs;
 
       int vals_length = thrust::reduce(segs_permuted.begin(), segs_permuted.end());
 
@@ -339,20 +344,20 @@ namespace scalan_thrust {
         segs_permuted_idxs.begin(),
         segs_permuted.begin(),
         vals_idxs_permutation.begin()); // vals_idxs_permutation: [4,-1,0,-1,-1]
-      print_vector("vals_idxs_permutation", vals_idxs_permutation);
+      std::cout << "vals_idxs_permutation" << vals_idxs_permutation;
 
       device_vector<int> vals_idxs_permutation1(vals_length);
       thrust::inclusive_scan
         (vals_idxs_permutation.begin(), vals_idxs_permutation.end(),
         vals_idxs_permutation1.begin(),
         back_permute_functor()); // vals_idxs_permutation1: [4,5,0,1,2]
-      print_vector("vals_idxs_permutation1", vals_idxs_permutation1);
+      std::cout << "vals_idxs_permutation1" << vals_idxs_permutation1;
 
       device_vector<T> vals_permuted(vals_length);
       thrust::gather(vals_idxs_permutation1.begin(), vals_idxs_permutation1.end(),
         values().data().begin(),
         vals_permuted.begin());
-      print_vector("vals_permuted", vals_permuted);
+      std::cout << "vals_permuted" << vals_permuted;
 
       base_array<T>* vals_ba = new base_array<T>(vals_permuted);
       base_array<int>* segs_ba = new base_array<int>(segs_permuted);
@@ -780,6 +785,58 @@ void tests() {
 }
 
 // ----- tests -----
+/*
+base_array<int> x11(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
+pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
+pair<nested_array<int>, base_array<int>> x14 = x12.fst();
+base_array<int> x17 = x14.snd();
+int x18 = x17.length();
+int x1 = 0;
+bool x19 = x18 == x1;
+base_array<int> x21 = x17;
+int x13 = x10.snd();
+base_array<int> x20 = base_array<int>(x18, x13);
+base_array<bool> x22 = binop_array_equal(x21, x20);
+pair<base_array<bool>, base_array<bool>>x26 = x22.flag_split(x22);
+base_array<bool> x27 = x26.fst();
+int x29 = x27.length();
+bool x30 = x29 == x1;
+bool x31 = !(x30);
+bool x32 = (x19||x31);
+base_array<int> x15 = x12.snd();
+nested_array<int> x16 = x14.fst();
+nested_array<int> x33 = x16;
+nested_array<int> x34 = x33.back_permute(x17);
+base_array<int> x35 = x34.values();
+base_array<int> x38 = x15;
+base_array<int> x39 = x38.back_permute(x35);
+int x40 = x39.length();
+int x41 = -1;
+base_array<int> x42 = base_array<int>(x40, x41);
+base_array<bool> x43 = binop_array_equal(x39, x42);
+pair<base_array<int>, base_array<int>>x44 = x35.flag_split(x43);
+base_array<int> x45 = x44.fst();
+base_array<int> x58 = x45;
+base_array<int> x36 = x21.expand_by(x34);
+pair<base_array<int>, base_array<int>>x47 = x36.flag_split(x43);
+base_array<int> x48 = x47.fst();
+base_array<int> x56 = x48;
+pair_array<int, int> x50(x45, x48);
+base_array<int> x54 = x38.write_pa(x50);
+base_array<int> x55 = x54.back_permute(x45);
+base_array<bool> x57 = binop_array_equal(x56, x55);
+pair<base_array<int>, base_array<int>>x59 = x58.flag_split(x57);
+base_array<int> x60 = x59.fst();
+pair<nested_array<int>, base_array<int>> x62 (x16, x60);
+pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x63 (x62, x54);
+pair<pair<pair<nested_array<int>, base_array<int>>, base_array<int>>, int> x64 (x63, x13);
+// Lambda: Lambda(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int],Sym(66))
+//base_array<int> x66;
+//if (x32) x66 = x15; else x66 = x65;
+std::cout << x60;
+return x60;
+}
+*/
 
 int main() {
   tests();
@@ -808,7 +865,7 @@ int main() {
 
   std::cout << input << std::endl;
 
-  //base_array<int> res = fun(input);
+  //base_array<int> res = x11(input);
 
   //std::cout << res;
 }
