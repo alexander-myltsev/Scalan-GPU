@@ -140,9 +140,22 @@ trait GpuGen extends GenericCodegen {
         stream.println(typ + " " + quote(s) + ";")
         stream.println("if (" + quote(ifArr.cond) + ") " + quote(s) + " = " + quote(ifArr.thenp) + "; else " + quote(s) + " = " + quote(ifArr.elsep) + ";")
 
+      case (tup: Tup[_, _]) =>
+        val typ1 = remap(tup.a.Elem.manifest)
+        val typ2 = remap(tup.b.Elem.manifest)
+        val typ = "pair<" + typ1 + ", " + typ2 + ">"
+        stream.println(typ + " " + quote(s) + " (" + quote(tup.a) + ", " + quote(tup.b) + ");")
+
+      case (lam: Lambda[_, _]) =>
+        stream.println("// Lambda: " + lam.toString)
+
+      case (app: Apply[_, _]) =>
+        val typ = remap(app.eB.manifest)
+        stream.println(typ + " " + quote(s) + " = " + quote(app.f) + "(" + quote(app.arg) + ");")
+
       case _ => super.emitNode(s, rhs)
     }
-    stream.println("std::cout << \"" + quote(s) + "\" << std::endl << \"" + rhs + "\" << std::endl << " + quote(s) + " << std::endl << \"---------\" << std::endl;")
+    //stream.println("std::cout << \"" + quote(s) + "\" << std::endl << \"" + rhs + "\" << std::endl << " + quote(s) + " << std::endl << \"---------\" << std::endl;")
   }
 
   def remapOp(op: String) = op match {

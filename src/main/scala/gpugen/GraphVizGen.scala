@@ -19,8 +19,8 @@ object GraphVizGen {
   def main(args: Array[String]): Unit = {
     import s._
     val prefix = "graphs/"
-    emitDepGraph(smvm, prefix + "smvm.dot", false)
-    emitDepGraph(matrixVectorMul, prefix + "matrixVectorMul.dot", false)
+    //emitDepGraph(smvm, prefix + "smvm.dot", false)
+    //emitDepGraph(matrixVectorMul, prefix + "matrixVectorMul.dot", false)
     emitDepGraph(breadthFirstSearch, prefix + "bfs.dot", false)
   }
 }

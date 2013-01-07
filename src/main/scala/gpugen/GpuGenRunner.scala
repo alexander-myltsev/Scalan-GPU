@@ -76,9 +76,9 @@ object GpuGenRunner {
 
         lam.x.Elem.manifest.toString match {
           case "scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]], scalan.dsl.ArraysBase$PArray[Float]]" =>
-            stream.println(tp + " fun(const pair<nested_array<pair<int, float> >, base_array<float> >& " + quote(lam.x) + ") {")
+            stream.println(tp + " " + quote(l) + "(const pair<nested_array<pair<int, float> >, base_array<float> >& " + quote(lam.x) + ") {")
           case "scala.Tuple2[scala.Tuple2[scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], Int]" =>
-            stream.println(tp + " fun(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& " + quote(lam.x) + ") {")
+            stream.println(tp + " " + quote(l) + "(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& " + quote(lam.x) + ") {")
         }
         emitBlock(lam.y)(stream)
         stream.println("return " + quote(lam.y) + ";")

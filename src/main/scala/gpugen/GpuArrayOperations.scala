@@ -50,15 +50,6 @@ trait GpuArrayOperations extends ScalanStaged {
 
   // ------------------------------------
 
-  //  zs = xs zip ys map { (x,y) => x + y - 10 }
-  //  val zs = xs |+| ys |-| replicate(xs.length, 10)
-  //
-  //  ys = xs filter { case x => x != 0 }
-  //  val ys = (xs flagSplit (xs |!=| replicate(xs.length, 0)))._1
-  //
-  //  xs.expandBy(ns)  //  xs.length == ns.length
-  //  xs.nestBy(segments)      // ExpNestedArray(xs, segments)
-
   type GraphNode = Int
   type Graph = PArray[PArray[GraphNode]]
   type FrontierNodes = PArray[GraphNode]
@@ -66,6 +57,16 @@ trait GpuArrayOperations extends ScalanStaged {
 
   def isEmpty[T](arr: PA[T]) = arr.length == 0
   def any(arr: PA[Boolean]) = !isEmpty((arr flagSplit arr)._1)
+
+  // NOTE: Manual operations lifing
+  // USE: val zs = xs |+| ys |-| replicate(xs.length, 10)
+  // INSTEAD OF: val zs = xs zip ys map { (x,y) => x + y - 10 }
+  //
+  // USE: val ys = (xs flagSplit (xs |!=| replicate(xs.length, 0)))._1
+  // INSTEAD OF: val ys = xs filter { case x => x != 0 }
+  //
+  //  USE: xs.expandBy(ns)  //  xs.length == ns.length
+  //  INSTEAD OF: xs.nestBy(segments)      // ExpNestedArray(xs, segments)
 
   lazy val breadthFirstSearch =
     letrec((bfs: Rep[((((Graph, FrontierNodes), BFSTree), GraphNode)) => BFSTree]) =>
