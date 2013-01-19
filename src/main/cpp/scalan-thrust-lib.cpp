@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <assert.h>
 
+#include <output_operators.h>
+
 using thrust::host_vector;
 using thrust::device_vector;
 using thrust::tuple;
@@ -28,21 +30,8 @@ using std::string;
 //#define DEBUG
 
 namespace scalan_thrust {
-  template <class T>
-  std::ostream& operator << (std::ostream& out, const device_vector<T>& d_v) {
-    thrust::copy(d_v.begin(), d_v.end(), std::ostream_iterator<T>(out, " "));
-    return out;
-  }
-
-  template <class T> class parray;
   template <class T> class nested_array;
   template <class T1, class T2> class pair_array;
-
-  template <class T>
-  std::ostream& operator << (std::ostream& out, const parray<T>& parr) {
-    parr.print();
-    return out;
-  }
 
   /*
   // NOTE: This doesn't work. nvcc doesn't compile virtual functions.
@@ -56,12 +45,6 @@ namespace scalan_thrust {
   __host__ __device__ T operator() (const T& a, const T& b) const { return a + b; }
   };
   */
-
-  template <class T>
-  class unary_operation {
-  public:
-    virtual T operator()(T v) = 0;
-  };
 
   class monoid {
   public:
@@ -312,7 +295,7 @@ namespace scalan_thrust {
       // this: [[a,b,c],[],[d],[e,f]]
       // values: [a,b,c,d,e,f]
       // segs: [3,0,1,2]
-      // idxs: [3,0,1]
+      // idxs: [3,0,1,2]
       // res: [[e,f],[a,b,c],[],[d]]
 
       device_vector<int> segs_idxs(idxs.length());
@@ -497,7 +480,6 @@ using scalan_thrust::base_array;
 using scalan_thrust::parray;
 using scalan_thrust::pair_array;
 using scalan_thrust::pair;
-using scalan_thrust::unary_operation;
 using scalan_thrust::monoid;
 using scalan_thrust::binop_array;
 using scalan_thrust::sum_lifted;
@@ -785,7 +767,8 @@ void tests() {
 }
 
 // ----- tests -----
-/*
+
+// ----------------------------------------
 base_array<int> x11(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
 pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
 pair<nested_array<int>, base_array<int>> x14 = x12.fst();
@@ -803,6 +786,10 @@ int x29 = x27.length();
 bool x30 = x29 == x1;
 bool x31 = !(x30);
 bool x32 = (x19||x31);
+base_array<int> x66;
+if (x32) {
+base_array<int> x15 = x12.snd();
+x66 = x15; } else {
 base_array<int> x15 = x12.snd();
 nested_array<int> x16 = x14.fst();
 nested_array<int> x33 = x16;
@@ -831,15 +818,17 @@ pair<nested_array<int>, base_array<int>> x62 (x16, x60);
 pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x63 (x62, x54);
 pair<pair<pair<nested_array<int>, base_array<int>>, base_array<int>>, int> x64 (x63, x13);
 // Lambda: Lambda(var_Sym(10): Tuple2[Tuple2[Tuple2[PArray[PArray[Int]], PArray[Int]], PArray[Int]], Int],Sym(66))
-//base_array<int> x66;
-//if (x32) x66 = x15; else x66 = x65;
-std::cout << x60;
-return x60;
+base_array<int> x65 = x11(x64);
+x66 = x65; }
+return x66;
 }
-*/
+
+#include <vector>
 
 int main() {
-  tests();
+  //tests();
+
+  std::cout << "hi";
 
   device_vector<int> d_segs(5);
   d_segs[0] = 1; d_segs[1] = 3; d_segs[2] = 2; d_segs[3] = 1; d_segs[4] = 1;
@@ -865,7 +854,7 @@ int main() {
 
   std::cout << input << std::endl;
 
-  //base_array<int> res = x11(input);
+  base_array<int> res = x11(input);
 
-  //std::cout << res;
+  std::cout << res;
 }
