@@ -10,6 +10,8 @@ trait GpuGen extends GenericCodegen {
 
   class GenerationFailedException(msg: String) extends Exception(msg)
 
+  class Scope(defs: List[TP[_]])
+
   var globDefsArr: Array[TP[_]] = null
 
   def remap[A](m: Manifest[A]): String = m.toString match {
@@ -34,6 +36,43 @@ trait GpuGen extends GenericCodegen {
     case "scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[scala.Tuple2[Int, Float]]]" => "nested_array<pair<int, float> >"
 
     case _ => throw new GenerationFailedException("CGen: remap(m) : Unknown data type (%s)".format(m.toString))
+  }
+
+  override def emitBlock(y: Exp[_])(implicit stream: PrintWriter): Unit = {
+    val deflist = buildScheduleForResult(y)
+
+    val ifExps = deflist.filter({
+      case (x:TP[_]) if x.rhs.isInstanceOf[ExpIfArray[_]] => true
+      case _ => false
+    }).reverse.foreach(tp => {
+      // TODO: This is a fast hack for a single IF in whole program. Recheck and fix possible bugs in case of multiple IFs
+      val expIf: ExpIfArray[_] = tp.rhs.asInstanceOf[ExpIfArray[_]]
+      val condSchedule = buildScheduleForResult(expIf.cond)
+      val thenSchedule = buildScheduleForResult(expIf.thenp)
+      val elseSchedule = buildScheduleForResult(expIf.elsep)
+
+      for (TP(sym, rhs) <- condSchedule) {
+        emitNode(sym, rhs)
+      }
+
+      val typ = "base_array<int>"
+      stream.println(typ + " " + quote(tp.sym) + ";")
+      stream.println("if (" + quote(expIf.cond) + ") {")
+
+      for (tpThen <- thenSchedule if !condSchedule.contains(tpThen) && tpThen != tp;
+           TP(sym, rhs) = tpThen) {
+        emitNode(sym, rhs)
+      }
+
+      stream.println(quote(tp.sym) + " = " + quote(expIf.thenp) + "; } else {")
+
+      for (tpElse <- elseSchedule if !condSchedule.contains(tpElse) && tpElse != tp;
+           TP(sym, rhs) = tpElse) {
+        emitNode(sym, rhs)
+      }
+
+      stream.println(quote(tp.sym) + " = " + quote(expIf.elsep) + "; }")
+    })
   }
 
   override def emitNode(s: Sym[_], rhs: Def[_])(implicit stream: PrintWriter): Unit = {
@@ -136,9 +175,11 @@ trait GpuGen extends GenericCodegen {
         stream.println("base_array<int> " + quote(s) + " = " + quote(wrt.a) + ".write_pa(" + quote(wrt.vals) + ");")
 
       case (ifArr: ExpIfArray[_]) =>
-        val typ = "base_array<int>"
-        stream.println(typ + " " + quote(s) + ";")
-        stream.println("if (" + quote(ifArr.cond) + ") " + quote(s) + " = " + quote(ifArr.thenp) + "; else " + quote(s) + " = " + quote(ifArr.elsep) + ";")
+//        val typ = "base_array<int>"
+//        stream.println(typ + " " + quote(s) + ";")
+//        stream.println("if (" + quote(ifArr.cond) + ") " + quote(s) + " = " + quote(ifArr.thenp) + "; else " + quote(s) + " = " + quote(ifArr.elsep) + ";")
+        stream.println("// " + ifArr)
+        !!!("Something went wrong. This must be processed in emitBlock")
 
       case (tup: Tup[_, _]) =>
         val typ1 = remap(tup.a.Elem.manifest)

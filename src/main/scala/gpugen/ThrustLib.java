@@ -13,8 +13,8 @@ import java.io.PrintStream;
         "<thrust/fill.h>",
         "<thrust/replace.h>",
         "<thrust/functional.h>",
-        "d:/phd/Scalan-v2/tmp/fun.cpp"},
-        includepath = {"d:/phd/thrust-src"})
+        "d:/personal/phd/Scalan-v2/tmp/fun.cpp"},
+        includepath = {"d:/personal/phd/thrust-src"})
 public class ThrustLib {
     static { Loader.load(); }
 

@@ -58,7 +58,7 @@ object GpuGenRunner {
       }
     }
 
-    val thrust_lib_code = io.Source.fromFile("src/scalan-thrust-lib.cpp")
+    val thrust_lib_code = io.Source.fromFile("src/main/cpp/scalan-thrust-lib.cpp")
     stream.println("// ----------------------------------------")
     stream.println("// ----- Scalan-Thrust CUDA/C library -----")
     stream.println("// ----------------------------------------")
@@ -80,6 +80,7 @@ object GpuGenRunner {
           case "scala.Tuple2[scala.Tuple2[scala.Tuple2[scalan.dsl.ArraysBase$PArray[scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], scalan.dsl.ArraysBase$PArray[Int]], Int]" =>
             stream.println(tp + " " + quote(l) + "(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& " + quote(lam.x) + ") {")
         }
+
         emitBlock(lam.y)(stream)
         stream.println("return " + quote(lam.y) + ";")
         stream.println("}")
@@ -159,12 +160,12 @@ object GpuGenRunner {
     val scalaLibs = List("out\\production\\Scalan-v2", "lib\\junit-4.10.jar", "lib\\maven-plugin-api-2.0.10.jar",
       "lib\\scala-compiler.jar", "lib\\scala-library.jar")
     val classPath = "-classpath \"" + javaLibs.map(libName => """C:\Java\jdk1.7.0\jre\lib\""" + libName).mkString("", ";", ";") +
-      scalaLibs.map(libName => """D:\phd\Scalan-v2\""" + libName).mkString("", ";", "") + "\""
+      scalaLibs.map(libName => """D:\personal\phd\Scalan-v2\""" + libName).mkString("", ";", "") + "\""
 
     runProcess(
       """C:\Java\jdk1.7.0\bin\java -Dfile.encoding=UTF-8 """ + classPath +
         """ com.googlecode.javacpp.Builder main.scala.gpugen.ThrustLib """ +
-        """-propertyfile D:\phd\Scalan-v2\src\javacpp-thrust-openmp-win-x86_64.properties""")
+        """-propertyfile D:\personal\phd\Scalan-v2\src\javacpp-thrust-openmp-win-x86_64.properties""")
   }
 
   def runProcess(procCmd: String) = {
