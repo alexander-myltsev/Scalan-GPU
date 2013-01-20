@@ -18,6 +18,10 @@
 #include <assert.h>
 
 #include <output_operators.h>
+#include <monoid.h>
+#include <pair.h>
+#include <parray.h>
+#include <base_array.h>
 
 using thrust::host_vector;
 using thrust::device_vector;
@@ -32,186 +36,6 @@ using std::string;
 namespace scalan_thrust {
   template <class T> class nested_array;
   template <class T1, class T2> class pair_array;
-
-  /*
-  // NOTE: This doesn't work. nvcc doesn't compile virtual functions.
-  template <class Arg1, class Arg2, class Result>
-  struct binary_function_callable : public thrust::binary_function<Arg1, Arg2, Result> {
-  __host__ __device__ virtual Result operator() (Arg1 a, Arg2 b) const;
-  };
-
-  template<class T>
-  struct plus : public binary_function_callable<T, T, T> {
-  __host__ __device__ T operator() (const T& a, const T& b) const { return a + b; }
-  };
-  */
-
-  class monoid {
-  public:
-    enum operation_t { OP_PLUS, OP_MINUS, OP_MUL };
-  private:
-    float m_zero;
-    operation_t m_opname; // TODO: Should be enum
-  public:
-    monoid(float zero, operation_t opname) : m_zero(zero), m_opname(opname) { }
-
-    float const& zero() const { return m_zero; }
-
-    /*
-    // TODO: thrust::plus() and thrust::minus() has no common ancetor with operator(). So, it is not possible to pass it to thrust::reduce() as last argument. How to implement it?
-    thrust::binary_function<float, float, float>* op() {
-    thrust::binary_function<float, float, float>* op_res = NULL;
-    return op_res;
-    }
-    */
-
-    operation_t const& op() const { return m_opname; }
-  };
-
-  template<class T1, class T2>
-  class pair {
-  private:
-    T1 const * m_v1;
-    T2 const * m_v2;
-  public:
-    pair(const T1& v1, const T2& v2) : m_v1(&v1), m_v2(&v2) { }
-    pair() : m_v1(NULL), m_v2(NULL) { }
-
-    const T1& fst() const { return *m_v1; }
-    const T2& snd() const { return *m_v2; }
-
-    ~pair() {
-    }
-  };
-
-  template <class T>
-  class parray {
-  public:
-    virtual int length() const { return -1; } // TODO: Make it pure function
-    virtual device_vector<T> const& data() const = 0;
-    virtual void print() const { printf("Not implemented\n"); }
-  };  
-
-  template <class T>
-  class base_array : public parray<T> {
-  private:
-    device_vector<T> m_data;
-
-  public:
-    base_array() : m_data() { }
-    base_array(int size) { }
-    base_array(int size, T t) : m_data(size, t) { }
-    base_array(const host_vector<T>& h_vec) : m_data(h_vec) { }
-    base_array(const device_vector<T>& d_vec) : m_data(d_vec) { }
-
-    virtual device_vector<T> const& data() const { return m_data; }
-    virtual int length() const { return m_data.size(); }
-
-    T sum(const monoid& m) const {
-      // TODO: Reconsider it to: res = thrust::reduce(..., m.zero(), (m.binary_operation() == plus | minus | ...);
-      T res;
-      switch (m.op()) {
-      case monoid::OP_PLUS:
-        res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::plus<T>());
-        break;
-      case monoid::OP_MINUS:
-        res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::minus<T>());
-        break;
-      case monoid::OP_MUL:
-        res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::multiplies<T>());
-        break;
-      default:
-        // TODO: Handle an error
-        break;
-      }
-      return res;
-    }
-
-    base_array<T> back_permute(const base_array<int>& idxs) { // NOTE: Can idxs be not base_array but PA?
-      device_vector<T> d_vec_res(idxs.data().size());
-      thrust::copy(
-        thrust::make_permutation_iterator(m_data.begin(), idxs.data().begin()),
-        thrust::make_permutation_iterator(m_data.end(), idxs.data().end()),
-        d_vec_res.begin());
-      base_array<T> res(d_vec_res);
-      return res;
-    }
-
-    virtual void print() const {
-      std::cout << "base_array: ";
-      for (int i = 0; i < m_data.size(); i++) {
-        std::cout << m_data[i] << " ";
-      }
-      std::cout << std::endl;
-    }
-
-    T get(int i) {
-      return this[i];
-    }
-
-    pair<base_array<T>, base_array<T> > flag_split(const base_array<bool>& flags) {
-      assert(this->length() == flags.length());
-
-      device_vector<bool> flgs_dt = flags.data();
-      device_vector<T> splitted_vals(this->data());
-      thrust::sort_by_key(flgs_dt.begin(), flgs_dt.end(), splitted_vals.begin());
-      int false_flags_count = thrust::count(flgs_dt.begin(), flgs_dt.end(), false);
-      device_vector<T> vals_false(splitted_vals.begin(), splitted_vals.begin() + false_flags_count);
-      device_vector<T> vals_true(splitted_vals.begin() + false_flags_count, splitted_vals.end());
-      return pair<base_array<T>, base_array<T> >(*(new base_array<T>(vals_true)), *(new base_array<T>(vals_false))); // TODO: Is here a memory leak?
-    }
-
-    template <class B>
-    base_array<T> expand_by(const nested_array<B>& nested_arr) const {
-      device_vector<int> expanded_indxs(nested_arr.values().length());
-      device_vector<T> expanded_values(nested_arr.values().length());
-      expand(nested_arr.segments().data().begin(), nested_arr.segments().data().end(), expanded_indxs.begin());
-      thrust::gather(expanded_indxs.begin(), expanded_indxs.end(), this->data().begin(), expanded_values.begin());
-      return base_array<T>(expanded_values);
-    }
-
-    template <class T>
-    struct write_pa_functor {
-      __host__ __device__ 
-        T operator()(thrust::tuple<T, T> t) {
-          T x, y;
-          thrust::tie(x, y) = t;
-          return y == 0 ? x : y;
-      }
-    };
-
-    base_array<T> write_pa(const pair_array<int, T>& vals) {
-      assert(*thrust::max_element(vals.first().data().begin(), vals.first().data().end()) < this->length());
-
-      device_vector<T> d_vals(vals.second().data());
-      device_vector<int> d_idxs(vals.first().data());
-
-      thrust::sort_by_key(d_idxs.begin(), d_idxs.end(), d_vals.begin());
-
-      //std::cout << ">>>: "; thrust::copy(d_vals.begin(), d_vals.end(), std::ostream_iterator<T>(std::cout, " ")); std::cout << std::endl;
-      //std::cout << ">>>: "; thrust::copy(d_idxs.begin(), d_idxs.end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
-
-      device_vector<T> d_vals_inplaces(this->length());
-      thrust::scatter
-        (d_vals.begin(), d_vals.end(),
-        d_idxs.begin(),
-        d_vals_inplaces.begin());
-      //std::cout << ">>>: "; thrust::copy(d_vals_inplaces.begin(), d_vals_inplaces.end(), std::ostream_iterator<T>(std::cout, " ")); std::cout << std::endl;
-
-      device_vector<T> res(this->data());
-      thrust::transform
-        (thrust::make_zip_iterator(thrust::make_tuple(res.begin(), d_vals_inplaces.begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(res.end(), d_vals_inplaces.end())),
-        res.begin(),
-        write_pa_functor<T>());
-
-      base_array<T> a(res);
-      //a.print();
-      return a;
-    }
-
-
-  }; // class base_array<T>
 
   template <class T>
   base_array<T> binop_array(const base_array<T>& a, const base_array<T>& b) {
@@ -823,12 +647,8 @@ x66 = x65; }
 return x66;
 }
 
-#include <vector>
-
 int main() {
-  //tests();
-
-  std::cout << "hi";
+  tests();
 
   device_vector<int> d_segs(5);
   d_segs[0] = 1; d_segs[1] = 3; d_segs[2] = 2; d_segs[3] = 1; d_segs[4] = 1;
@@ -854,7 +674,9 @@ int main() {
 
   std::cout << input << std::endl;
 
-  base_array<int> res = x11(input);
+  //base_array<int> res = x11(input);
 
-  std::cout << res;
+  //std::cout << res;
+
+  std::getchar();
 }

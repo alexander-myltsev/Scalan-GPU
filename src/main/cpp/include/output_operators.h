@@ -1,3 +1,7 @@
+#ifndef OUTPUT_OPERATORS_H
+#define OUTPUT_OPERATORS_H
+
+#include <iostream>
 #include <thrust/device_vector.h>
 
 namespace scalan_thrust {
@@ -15,3 +19,5 @@ namespace scalan_thrust {
     return out;
   }
 }
+
+#endif OUTPUT_OPERATORS_H
