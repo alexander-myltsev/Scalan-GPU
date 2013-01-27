@@ -37,19 +37,19 @@ namespace scalan_thrust {
 
     base_array(int size) { 
       m_data = new device_vector<T>(size); 
-      m_ref_counter = new m_ref_counter(0); 
+      m_ref_counter = new ref_counter(); 
       m_ref_counter->grab();
     }
 
     base_array(int size, T t) { 
       m_data = new device_vector<T>(size, t); 
-      m_ref_counter = new m_ref_counter(0); 
+      m_ref_counter = new ref_counter(); 
       m_ref_counter->grab();
     }
 
     base_array(const host_vector<T>& h_vec) { 
       m_data = new device_vector<T>(h_vec); 
-      m_ref_counter = new m_ref_counter(0); 
+      m_ref_counter = new ref_counter(); 
       m_ref_counter->grab(); 
     }
 
@@ -79,10 +79,10 @@ namespace scalan_thrust {
     }
 
     base_array(const base_array<T>& ba) : m_ref_counter(ba.m_ref_counter), m_data(ba.m_data) { 
-      m_ref_counter.grab();
+      m_ref_counter->grab();
     }
     
-    virtual device_vector<T> const& data() const { return *m_data; }
+    virtual device_vector<T>& data() const { return *m_data; }
     virtual int length() const { return m_data->size(); }
     T get(int i) { return this[i]; }
 

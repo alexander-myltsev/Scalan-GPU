@@ -269,26 +269,26 @@ namespace scalan_thrust {
 
   base_array<float> sum_lifted(const nested_array<float>& na) {
     base_array<int> segs = na.segments();
-    device_vector<int> segs_keys(na.values().length());
-    expand(segs.data().begin(), segs.data().end(), segs_keys.begin());
+    base_array<int> segs_keys(na.values().length());
+    expand(segs.data().begin(), segs.data().end(), segs_keys.data().begin());
 
 #ifdef DEBUG
     std::cout << "sum_lifted::seg_keys: "; thrust::copy(segs_keys.begin(), segs_keys.end(), std::ostream_iterator<int>(std::cout, " ")); std::cout << std::endl;
 #endif
 
     int non_zero_values_count = thrust::count_if(segs.data().begin(), segs.data().end(), is_positive());
-    device_vector<float> res_values(non_zero_values_count);
-    device_vector<int> segs_d(segs.length());
-    thrust::reduce_by_key(segs_keys.begin(), segs_keys.end(),
-      na.values().data().begin(), segs_d.begin(), res_values.begin());
+    base_array<float> res_values(non_zero_values_count);
+    base_array<int> segs_d(segs.length());
+    thrust::reduce_by_key(segs_keys.data().begin(), segs_keys.data().end(),
+      na.values().data().begin(), segs_d.data().begin(), res_values.data().begin());
 
-    thrust::unique(segs_keys.begin(), segs_keys.end());
+    thrust::unique(segs_keys.data().begin(), segs_keys.data().end());
 
     //std::cout << ">>>: "; thrust::copy(v_star->data().begin(), v_star->data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;    
 
-    device_vector<float> *res = new device_vector<float>(segs.length());
-    thrust::scatter(res_values.begin(), res_values.end(), segs_keys.begin(), res->begin());
-    return base_array<float>(res);
+    base_array<float> res(segs.length());
+    thrust::scatter(res_values.data().begin(), res_values.data().end(), segs_keys.data().begin(), res.data().begin());
+    return res;
   }  
 
   template <class T1, class T2>
