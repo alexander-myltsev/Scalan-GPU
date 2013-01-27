@@ -15,6 +15,7 @@
 
 #include "monoid.h"
 #include "pair.h"
+#include "ref_counter.h"
 #include "parray.h"
 
 using thrust::device_vector;
@@ -26,24 +27,68 @@ namespace scalan_thrust {
   template <class T1, class T2> class pair_array;
 
   template <class T>
-  class base_array : public parray<T> {
+  class base_array : public parray<T>, public ref_counter {
   private:
-    device_vector<T> m_data;
+    device_vector<T>* m_data;
+    ref_counter* m_ref_counter;
 
   public:
-    base_array() : m_data() { }
-    base_array(int size) { }
-    base_array(int size, T t) : m_data(size, t) { }
-    base_array(const host_vector<T>& h_vec) : m_data(h_vec) { }
-    base_array(const device_vector<T>& d_vec) : m_data(d_vec) { }
+    base_array() { }
 
-    virtual device_vector<T> const& data() const { return m_data; }
-    virtual int length() const { return m_data.size(); }
+    base_array(int size) { 
+      m_data = new device_vector<T>(size); 
+      m_ref_counter = new m_ref_counter(0); 
+      m_ref_counter->grab();
+    }
+
+    base_array(int size, T t) { 
+      m_data = new device_vector<T>(size, t); 
+      m_ref_counter = new m_ref_counter(0); 
+      m_ref_counter->grab();
+    }
+
+    base_array(const host_vector<T>& h_vec) { 
+      m_data = new device_vector<T>(h_vec); 
+      m_ref_counter = new m_ref_counter(0); 
+      m_ref_counter->grab(); 
+    }
+
+    //base_array(device_vector<T>* d_vec) : m_data(d_vec) { 
+    //  this->grab(); 
+    //}
+
+    base_array(base_array<T>* ptr) { 
+      if (ptr != NULL) { 
+        m_data = ptr->m_data;
+        m_ref_counter = ptr->m_ref_counter;
+        m_ref_counter->grab();
+      }
+    }
+
+    ~base_array() { 
+      if (!m_ref_counter->release()) {
+        delete m_data;
+        delete m_ref_counter;
+      }
+    }
+
+    base_array<T> &operator=(const base_array<T>& ptr) {
+      m_data = ptr.m_data;
+      m_ref_counter = ptr.m_ref_counter;
+      return *this; 
+    }
+
+    base_array(const base_array<T>& ba) : m_ref_counter(ba.m_ref_counter), m_data(ba.m_data) { 
+      m_ref_counter.grab();
+    }
+    
+    virtual device_vector<T> const& data() const { return *m_data; }
+    virtual int length() const { return m_data->size(); }
     T get(int i) { return this[i]; }
 
     T sum(const monoid& m) const;
 
-    base_array<T> back_permute(const base_array<int>& idxs);
+    base_array<T> back_permute(const base_array<int>& idxs) const;
 
     virtual void print() const;
 
@@ -63,13 +108,13 @@ namespace scalan_thrust {
     T res;
     switch (m.op()) {
     case monoid::OP_PLUS:
-      res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::plus<T>());
+      res = thrust::reduce(data().begin(), data().end(), m.zero(), thrust::plus<T>());
       break;
     case monoid::OP_MINUS:
-      res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::minus<T>());
+      res = thrust::reduce(data().begin(), data().end(), m.zero(), thrust::minus<T>());
       break;
     case monoid::OP_MUL:
-      res = thrust::reduce(m_data.begin(), m_data.end(), m.zero(), thrust::multiplies<T>());
+      res = thrust::reduce(data().begin(), data().end(), m.zero(), thrust::multiplies<T>());
       break;
     default:
       // TODO: Handle an error
@@ -79,21 +124,20 @@ namespace scalan_thrust {
   }
 
   template <class T>
-  base_array<T> base_array<T>::back_permute(const base_array<int>& idxs) { // NOTE: Can idxs be not base_array but PA?
-    device_vector<T> d_vec_res(idxs.data().size());
+  base_array<T> base_array<T>::back_permute(const base_array<int>& idxs) const { // NOTE: Can idxs be not base_array but PA?
+    base_array<T> res(idxs.data().size());
     thrust::copy(
-      thrust::make_permutation_iterator(m_data.begin(), idxs.data().begin()),
-      thrust::make_permutation_iterator(m_data.end(), idxs.data().end()),
-      d_vec_res.begin());
-    base_array<T> res(d_vec_res);
+      thrust::make_permutation_iterator(data().begin(), idxs.data().begin()),
+      thrust::make_permutation_iterator(data().end(), idxs.data().end()),
+      res.m_data->begin()); // TODO: why can't write res.m_data->begin() ?
     return res;
   }
 
   template <class T>
   void base_array<T>::print() const {
     std::cout << "base_array: ";
-    for (int i = 0; i < m_data.size(); i++) {
-      std::cout << m_data[i] << " ";
+    for (int i = 0; i < data().size(); i++) {
+      std::cout << data()[i] << " ";
     }
     std::cout << std::endl;
   }
@@ -103,7 +147,7 @@ namespace scalan_thrust {
     assert(this->length() == flags.length());
 
     device_vector<bool> flgs_dt = flags.data();
-    device_vector<T> splitted_vals(this->data());
+    device_vector<T> splitted_vals(data());
     thrust::sort_by_key(flgs_dt.begin(), flgs_dt.end(), splitted_vals.begin());
     int false_flags_count = thrust::count(flgs_dt.begin(), flgs_dt.end(), false);
     device_vector<T> vals_false(splitted_vals.begin(), splitted_vals.begin() + false_flags_count);

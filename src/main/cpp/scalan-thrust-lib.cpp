@@ -286,9 +286,8 @@ namespace scalan_thrust {
 
     //std::cout << ">>>: "; thrust::copy(v_star->data().begin(), v_star->data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;    
 
-    device_vector<float> res(segs.length());
-    thrust::scatter(res_values.begin(), res_values.end(), 
-      segs_keys.begin(), res.begin());
+    device_vector<float> *res = new device_vector<float>(segs.length());
+    thrust::scatter(res_values.begin(), res_values.end(), segs_keys.begin(), res->begin());
     return base_array<float>(res);
   }  
 
@@ -329,7 +328,7 @@ void test_back_permute_1() {
   std::cout << "test_back_permute::ba: "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
 #endif
 
-  device_vector<int> idxs_data(4);
+  host_vector<int> idxs_data(4);
   idxs_data[0] = 2; idxs_data[1] = 1; idxs_data[2] = 4; idxs_data[3] = 8;
   base_array<int> idxs(idxs_data);
 
@@ -358,7 +357,7 @@ void test_back_permute_2() {
   std::cout << "test_back_permute::ba: "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
 #endif
 
-  device_vector<int> idxs_data(6);
+  host_vector<int> idxs_data(6);
   idxs_data[0] = 2; idxs_data[1] = 1; idxs_data[2] = 3; idxs_data[3] = 0; idxs_data[4] = 2; idxs_data[5] = 0; 
   base_array<int> idxs(idxs_data);
 
@@ -465,11 +464,11 @@ void test_smvm() {
 
 void test_flag_split() {
   // init
-  device_vector<float> d_a(6);
+  host_vector<float> d_a(6);
   d_a[0] = 1.0f; d_a[1] = 2.0f; d_a[2] = 0.0f; d_a[3] = 3.0f; d_a[4] = 4.0f; d_a[5] = 5.0f;
   base_array<float> a(d_a);
 
-  device_vector<bool> d_flags(6);
+  host_vector<bool> d_flags(6);
   d_flags[0] = d_flags[4] = true; d_flags[1] = d_flags[2] = d_flags[3] = d_flags[5] = false;
   base_array<bool> flags(d_flags); 
 
@@ -492,13 +491,13 @@ void test_flag_split() {
 }
 
 void test_base_array_expand_by() {
-  device_vector<int> d_a(3);
+  host_vector<int> d_a(3);
   d_a[0] = 1; d_a[1] = 2; d_a[2] = 3;
   base_array<int> a(d_a);
 
-  device_vector<int> d_segs(3);
+  host_vector<int> d_segs(3);
   d_segs[0] = 1; d_segs[1] = 2; d_segs[2] = 1;
-  device_vector<int> d_vals(4);
+  host_vector<int> d_vals(4);
   d_vals[0] = 3; d_vals[1] = 4; d_vals[2] = 5; d_vals[3] = 6;
   base_array<int> vals(d_vals);
   base_array<int> segs(d_segs);
@@ -515,7 +514,7 @@ void test_base_array_expand_by() {
 }
 
 void test_write_pa() {
-  device_vector<float> d_input(5);
+  host_vector<float> d_input(5);
   d_input[0] = 1.0f; d_input[1] = 2.0f; d_input[2] = 0.0f; d_input[3] = 0.0f; d_input[4] = 5.0f;
   base_array<float> input(d_input);
 
@@ -542,10 +541,8 @@ void test_nested_arr_backpermute() {
   d_vals[0] = 1; d_vals[1] = 2; d_vals[2] = 3; d_vals[3] = 4; d_vals[4] = 5; d_vals[5] = 6;
   device_vector<int> d_segs(4);
   d_segs[0] = 3; d_segs[1] = 0; d_segs[2] = 1; d_segs[3] = 2;
-  // NOTE: Why 'nested_array<float> na(&base_array<float>(d_vals), base_array<int>(d_segs));' has empty d_vals?
   base_array<float> vals(d_vals);
   base_array<int> segs(d_segs);
-  // NOTE: Why 'nested_array<float> na(&vals, &base_array<int>(d_segs));' has corrupted d_segs?
   nested_array<float> na(&vals, &segs);
 
   device_vector<int> d_permutation(3);
