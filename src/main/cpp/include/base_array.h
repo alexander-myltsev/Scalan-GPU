@@ -27,40 +27,43 @@ namespace scalan_thrust {
   template <class T1, class T2> class pair_array;
 
   template <class T>
-  class base_array : public parray<T>, public ref_counter {
-  private:
-    device_vector<T>* m_data;
+  class base_array : public parray<T> {
+  private:   
     ref_counter* m_ref_counter;
+    device_vector<T>* m_data;
+    int id;
+
+    int next_id() { 
+      static int id_count;
+      return id_count++;
+    }
 
   public:
     base_array() { }
 
-    base_array(int size) { 
+    base_array(int size) : id(next_id()) { 
       m_data = new device_vector<T>(size); 
       m_ref_counter = new ref_counter(); 
       m_ref_counter->grab();
     }
 
-    base_array(int size, T t) { 
+    base_array(int size, T t) : id(next_id()) { 
       m_data = new device_vector<T>(size, t); 
       m_ref_counter = new ref_counter(); 
       m_ref_counter->grab();
     }
 
-    base_array(const host_vector<T>& h_vec) { 
+    base_array(const host_vector<T>& h_vec) : id(next_id()) { 
       m_data = new device_vector<T>(h_vec); 
       m_ref_counter = new ref_counter(); 
       m_ref_counter->grab(); 
     }
 
-    //base_array(device_vector<T>* d_vec) : m_data(d_vec) { 
-    //  this->grab(); 
-    //}
-
     base_array(base_array<T>* ptr) { 
       if (ptr != NULL) { 
         m_data = ptr->m_data;
         m_ref_counter = ptr->m_ref_counter;
+        id = ptr->id;
         m_ref_counter->grab();
       }
     }
@@ -75,14 +78,17 @@ namespace scalan_thrust {
     base_array<T> &operator=(const base_array<T>& ptr) {
       m_data = ptr.m_data;
       m_ref_counter = ptr.m_ref_counter;
+      id = ptr.id;
+      m_ref_counter->grab();
       return *this; 
     }
 
-    base_array(const base_array<T>& ba) : m_ref_counter(ba.m_ref_counter), m_data(ba.m_data) { 
+    base_array(const base_array<T>& ba) : m_ref_counter(ba.m_ref_counter), m_data(ba.m_data), id(ba.id) { 
       m_ref_counter->grab();
     }
     
     virtual device_vector<T>& data() const { return *m_data; }
+
     virtual int length() const { return m_data->size(); }
     T get(int i) { return this[i]; }
 

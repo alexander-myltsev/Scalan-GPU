@@ -87,19 +87,36 @@ namespace scalan_thrust {
   template <class T>
   class nested_array : public parray<T> {
   private:
-    base_array<T>* m_values; //parray<T>* m_values; // TODO: Make const and * combination as so: can change pointer but not values
-    base_array<int>* m_segments;
+    base_array<T> m_values; //parray<T>* m_values; // TODO: Make const and * combination as so: can change pointer but not values
+    base_array<int> m_segments;
   public:
     nested_array() : m_values(), m_segments() { }    
-    nested_array(/*parray<T>**/ base_array<T>* values, base_array<int>* segments) { 
+    nested_array(/*parray<T>**/ const base_array<T>& values, const base_array<int>& segments) { 
       m_segments = segments;
       m_values = values; // TODO: Why polymorphism doesn't work for 'm_values = (const parray<T>& values)'?
     }
 
-    base_array<int>& segments() const { return *m_segments; }
-    /*parray<T>&*/ base_array<T>& values() const { return *m_values; }
+    nested_array<T> &operator=(const nested_array<T>& ptr) {
+      m_values = ptr.m_values; 
+      m_segments = ptr.segments;
+      return *this; 
+    }
+
+    nested_array(nested_array<T>* ptr) { 
+      if (ptr != NULL) { 
+        m_values = ptr->m_values;
+        m_segments = ptr->m_segments;
+      }
+    }
+
+    nested_array(const nested_array<T>& na) : m_values(na.m_values), m_segments(na.m_segments) { }
+
+    ~nested_array() { }
+
+    base_array<int> segments() const { return m_segments; }
+    /*parray<T>&*/ base_array<T> values() const { return m_values; }
     virtual int length() const { return segments().length(); }
-    virtual device_vector<T> const& data() const { return values().data(); }
+    virtual device_vector<T>& data() const { return values().data(); }
 
     //base_array<T> map(const unary_operation<T>& op) {
     //parray<T> map(const unary_operation<T>& op) {
@@ -122,53 +139,54 @@ namespace scalan_thrust {
       // idxs: [3,0,1,2]
       // res: [[e,f],[a,b,c],[],[d]]
 
-      device_vector<int> segs_idxs(idxs.length());
+      base_array<int> segs_idxs(idxs.length());
       thrust::exclusive_scan(segments().data().begin(), segments().data().end(),
-        segs_idxs.begin()); // segs_idxs: [0,3,3]
+        segs_idxs.data().begin()); // segs_idxs: [0,3,3]
       std:: cout << "segs_idxs" << segs_idxs;
 
-      device_vector<int> segs_idxs_permuted(idxs.length());
+      base_array<int> segs_idxs_permuted(idxs.length());
       thrust::gather(idxs.data().begin(), idxs.data().end(),
-        segs_idxs.begin(),
-        segs_idxs_permuted.begin()); // segs_idxs_permuted: [4,0,3]
+        segs_idxs.data().begin(),
+        segs_idxs_permuted.data().begin()); // segs_idxs_permuted: [4,0,3]
       std::cout << "segs_idxs_permuted" << segs_idxs_permuted;
 
-      device_vector<int> segs_permuted(idxs.length());
+      base_array<int> segs_permuted(idxs.length());
       thrust::gather(idxs.data().begin(), idxs.data().end(),
         segments().data().begin(),
-        segs_permuted.begin()); // segs_permuted: [2,3,0]
+        segs_permuted.data().begin()); // segs_permuted: [2,3,0]
       std::cout << "segs_permuted" << segs_permuted;
 
-      device_vector<int> segs_permuted_idxs(idxs.length());
-      thrust::exclusive_scan(segs_permuted.begin(), segs_permuted.end(), 
-        segs_permuted_idxs.begin()); // segs_permuted_idxs: [0,2,5]
+      base_array<int> segs_permuted_idxs(idxs.length());
+      thrust::exclusive_scan(segs_permuted.data().begin(), segs_permuted.data().end(), 
+        segs_permuted_idxs.data().begin()); // segs_permuted_idxs: [0,2,5]
       std::cout << "segs_permuted_idxs" << segs_permuted_idxs;
 
-      int vals_length = thrust::reduce(segs_permuted.begin(), segs_permuted.end());
+      int vals_length = thrust::reduce(segs_permuted.data().begin(), segs_permuted.data().end());
 
-      device_vector<int> vals_idxs_permutation(vals_length, -1);
-      thrust::scatter_if(segs_idxs_permuted.begin(), segs_idxs_permuted.end(),
-        segs_permuted_idxs.begin(),
-        segs_permuted.begin(),
-        vals_idxs_permutation.begin()); // vals_idxs_permutation: [4,-1,0,-1,-1]
+      base_array<int> vals_idxs_permutation(vals_length, -1);
+      thrust::scatter_if(segs_idxs_permuted.data().begin(), segs_idxs_permuted.data().end(),
+        segs_permuted_idxs.data().begin(),
+        segs_permuted.data().begin(),
+        vals_idxs_permutation.data().begin()); // vals_idxs_permutation: [4,-1,0,-1,-1]
       std::cout << "vals_idxs_permutation" << vals_idxs_permutation;
 
-      device_vector<int> vals_idxs_permutation1(vals_length);
+      base_array<int> vals_idxs_permutation1(vals_length);
       thrust::inclusive_scan
-        (vals_idxs_permutation.begin(), vals_idxs_permutation.end(),
-        vals_idxs_permutation1.begin(),
+        (vals_idxs_permutation.data().begin(), vals_idxs_permutation.data().end(),
+        vals_idxs_permutation1.data().begin(),
         back_permute_functor()); // vals_idxs_permutation1: [4,5,0,1,2]
       std::cout << "vals_idxs_permutation1" << vals_idxs_permutation1;
 
-      device_vector<T> vals_permuted(vals_length);
-      thrust::gather(vals_idxs_permutation1.begin(), vals_idxs_permutation1.end(),
+      base_array<T> vals_permuted(vals_length);
+      thrust::gather(vals_idxs_permutation1.data().begin(), vals_idxs_permutation1.data().end(),
         values().data().begin(),
-        vals_permuted.begin());
+        vals_permuted.data().begin());
       std::cout << "vals_permuted" << vals_permuted;
 
-      base_array<T>* vals_ba = new base_array<T>(vals_permuted);
-      base_array<int>* segs_ba = new base_array<int>(segs_permuted);
-      return nested_array<T>(vals_ba, segs_ba);
+      //segs_permuted = base_array<int>(idxs.length());
+      //base_array<T> vals_permuted = base_array<T>(idxs.length());
+
+      return nested_array<T>(vals_permuted, segs_permuted);
     }
 
     virtual void print() const {
@@ -178,9 +196,6 @@ namespace scalan_thrust {
       printf("segments-> ");
       segments().print();
       printf("]\n");
-    }
-
-    ~nested_array() {
     }
   }; // class nested_array<T>
 
@@ -412,7 +427,7 @@ void test_sum_lifted() {
 
   base_array<float> vals(vals_h);
   base_array<int> segs(segs_h);
-  nested_array<float> na(&vals, &segs);
+  nested_array<float> na(vals, segs);
 
   base_array<float> res = sum_lifted(na);
 
@@ -543,10 +558,10 @@ void test_nested_arr_backpermute() {
   d_segs[0] = 3; d_segs[1] = 0; d_segs[2] = 1; d_segs[3] = 2;
   base_array<float> vals(d_vals);
   base_array<int> segs(d_segs);
-  nested_array<float> na(&vals, &segs);
+  nested_array<float> na(vals, segs);
 
-  device_vector<int> d_permutation(3);
-  d_permutation[0] = 3; d_permutation[1] = 0; d_permutation[2] = 1;
+  device_vector<int> d_permutation(4);
+  d_permutation[0] = 3; d_permutation[1] = 0; d_permutation[2] = 1; d_permutation[3] = 2;
   base_array<int> permutation(d_permutation);
 
   nested_array<float> na_permuted = na.back_permute(permutation);
@@ -557,10 +572,12 @@ void test_nested_arr_backpermute() {
   assert(FLOAT_EQ(na_permuted.values().data()[2], 1.0f));
   assert(FLOAT_EQ(na_permuted.values().data()[3], 2.0f));
   assert(FLOAT_EQ(na_permuted.values().data()[4], 3.0f));
+  assert(FLOAT_EQ(na_permuted.values().data()[5], 4.0f));
 
   assert(na_permuted.segments().data()[0] == 2);
   assert(na_permuted.segments().data()[1] == 3);
   assert(na_permuted.segments().data()[2] == 0);
+  assert(na_permuted.segments().data()[3] == 1);
 }
 
 void tests() {
