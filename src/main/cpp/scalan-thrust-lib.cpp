@@ -61,7 +61,7 @@ namespace scalan_thrust {
     return base_array<bool>(res);
   }
 
-    // TODO: 
+  // TODO: 
   // Someday make it like:
   // template <class PArr1, class PArr2>
   // class pair_array : public parray<pair<PArr1::elem_type, PArr2::elem_type> > {
@@ -130,6 +130,23 @@ namespace scalan_thrust {
       }
     };
 
+
+    // NOTE: nested_array.back_permute in terms of base_array.back_permute, i.e. no tricky bytes manipultaions
+    //  val data = fromArray(Array(100, 101, 102, 103, 104, 105, 106, 107, 108, 109))
+    //  val segsLens = fromArray(Array(4, 1, 0, 5))
+    //  val segsIdxs = fromArray(Array(0, 4, 5, 5))
+    //  val na = mkNestedArray(data, segsIdxs zip segsLens)
+    //  val idxs = fromArray(Array(1, 3, 2, 0))
+    //  val a1 = segsIdxs.backPermute(idxs)
+    //  val a2 = segsLens.backPermute(idxs).scan
+    //  val a3 = (a1 zip a2) map {case Pair(x, y) => x - y} // a3 = a1 |-| a2
+    //  val idxs1Data = fromArray(Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+    //  val idxs1Lens = segsLens.backPermute(idxs)
+    //  val idxs1Idxs = idxs1Lens.scan
+    //  val idxs1 = mkNestedArray(idxs1Data, idxs1Idxs zip idxs1Lens)
+    //  val a4 = a3.expandBy(idxs1)
+    //  val a5 = (idxs1Data zip a4) map {case Pair(x, y) => x + y} // a5 = idxs1Data |+| a4
+    //  val res = data.backPermute(a5)
     nested_array<T> back_permute(const base_array<int>& idxs) const { // NOTE: Can idxs be not base_array but PA?
       // NOTE: generally idxs.length() != length()
 
