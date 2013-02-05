@@ -141,11 +141,11 @@ namespace scalan_thrust {
 
   template <class T>
   void base_array<T>::print() const {
-    std::cout << "base_array: ";
+    std::cout << "[base_array: ";
     for (int i = 0; i < data().size(); i++) {
       std::cout << data()[i] << " ";
     }
-    std::cout << std::endl;
+    std::cout << "] " << std::endl;
   }
 
   template <class T>
