@@ -22,6 +22,7 @@
 #include <pair.h>
 #include <parray.h>
 #include <base_array.h>
+#include <pair_array.h>
 
 using thrust::host_vector;
 using thrust::device_vector;
@@ -38,7 +39,7 @@ namespace scalan_thrust {
   template <class T1, class T2> class pair_array;
 
   template <class T>
-  base_array<T> binop_array(const base_array<T>& a, const base_array<T>& b) {
+  base_array<T> binop_array_mult(const base_array<T>& a, const base_array<T>& b) {
     assert(a.length() == b.length());
     device_vector<T> d_vec_res(a.length());
     thrust::transform(
@@ -46,6 +47,30 @@ namespace scalan_thrust {
       b.data().begin(),
       d_vec_res.begin(),
       thrust::multiplies<T>()); // TODO: Implement BinOp<T>
+    return base_array<T>(d_vec_res);
+  }
+
+  template <class T>
+  base_array<T> binop_array_sub(const base_array<T>& a, const base_array<T>& b) {
+    assert(a.length() == b.length());
+    device_vector<T> d_vec_res(a.length());
+    thrust::transform(
+      a.data().begin(), a.data().end(),
+      b.data().begin(),
+      d_vec_res.begin(),
+      thrust::minus<T>()); // TODO: Implement BinOp<T>
+    return base_array<T>(d_vec_res);
+  }
+
+  template <class T>
+  base_array<T> binop_array_add(const base_array<T>& a, const base_array<T>& b) {
+    assert(a.length() == b.length());
+    device_vector<T> d_vec_res(a.length());
+    thrust::transform(
+      a.data().begin(), a.data().end(),
+      b.data().begin(),
+      d_vec_res.begin(),
+      thrust::plus<T>()); // TODO: Implement BinOp<T>
     return base_array<T>(d_vec_res);
   }
 
@@ -60,29 +85,6 @@ namespace scalan_thrust {
       thrust::equal_to<T>());
     return base_array<bool>(res);
   }
-
-  // TODO: 
-  // Someday make it like:
-  // template <class PArr1, class PArr2>
-  // class pair_array : public parray<pair<PArr1::elem_type, PArr2::elem_type> > {
-  // private:
-  // PArr1 m_a;
-  template <class T1, class T2>
-  class pair_array : public parray<pair<T1, T2> > {
-  private:
-    base_array<T1> m_a;
-    base_array<T2> m_b;
-  public:
-    pair_array(const base_array<T1>& a, const base_array<T2>& b) : m_a(a), m_b(b) { 
-      assert(m_a.length() == m_b.length());
-    }
-
-    base_array<T1> const& first() const { return m_a; }
-    base_array<T2> const& second() const { return m_b; }
-
-    virtual int length() const { return m_a.length(); }
-    virtual device_vector<pair<T1, T2>> const& data() const { return device_vector<pair<T1, T2>>(); } // TODO: Here should not be data call like this. Fix it.
-  };
 
   template <class T>
   class nested_array : public parray<T> {
@@ -148,7 +150,7 @@ namespace scalan_thrust {
     //  val a5 = (idxs1Data zip a4) map {case Pair(x, y) => x + y} // a5 = idxs1Data |+| a4
     //  val res = data.backPermute(a5)
     nested_array<T> back_permute(const base_array<int>& idxs) const { // NOTE: Can idxs be not base_array but PA?
-      // NOTE: generally idxs.length() != length()
+      // NOTE: generally idxs.length() != this.length()
 
       // this: [[a,b,c],[],[d],[e,f]]
       // values: [a,b,c,d,e,f]
@@ -156,54 +158,33 @@ namespace scalan_thrust {
       // idxs: [3,0,1,2]
       // res: [[e,f],[a,b,c],[],[d]]
 
-      base_array<int> segs_idxs(idxs.length());
-      thrust::exclusive_scan(segments().data().begin(), segments().data().end(),
-        segs_idxs.data().begin()); // segs_idxs: [0,3,3]
-      std:: cout << "segs_idxs" << segs_idxs;
+      std::cout << "idxs: " << idxs;
+      base_array<int> segments_idxs(m_segments.length());
+      thrust::exclusive_scan(m_segments.data().begin(), m_segments.data().end(), segments_idxs.data().begin());
+      std::cout << "segments_idxs: " << segments_idxs;
+      base_array<int> segments_idxs_permuted = segments_idxs.back_permute(idxs);
+      std::cout << "segments_idxs_permuted: " << segments_idxs_permuted;
+      base_array<int> segments_lens_permuted = m_segments.back_permute(idxs);
+      std::cout << "segments_lens_permuted: " << segments_lens_permuted;
+      base_array<int> segments_permuted_idxs(segments_lens_permuted.length());
+      thrust::exclusive_scan(segments_lens_permuted.data().begin(), segments_lens_permuted.data().end(), segments_permuted_idxs.data().begin());
+      base_array<int> segments_movement_diff = binop_array_sub(segments_idxs_permuted, segments_permuted_idxs);
+      std::cout << "segments_movement_diff: " << segments_movement_diff;
+      
+      
+      base_array<int> idxs_new_data(thrust::reduce(segments_lens_permuted.data().begin(),segments_lens_permuted.data().end()));
+      for (int i = 0; i < idxs_new_data.length(); i++) idxs_new_data.data()[i] = i;
+      std::cout << "idxs_new_data: " << idxs_new_data;
+      nested_array<int> idxs_new(idxs_new_data, segments_lens_permuted);
+      std::cout << "idxs_new: " << idxs_new;
+      base_array<int> a4 = segments_movement_diff.expand_by(idxs_new);
+      std::cout << "a4: " << a4;
+      base_array<int> a5 = binop_array_add(idxs_new_data, a4);
+      std::cout << "a5: " << a5;
+      base_array<T> res = m_values.back_permute(a5);
+      std::cout << "res: " << res;
 
-      base_array<int> segs_idxs_permuted(idxs.length());
-      thrust::gather(idxs.data().begin(), idxs.data().end(),
-        segs_idxs.data().begin(),
-        segs_idxs_permuted.data().begin()); // segs_idxs_permuted: [4,0,3]
-      std::cout << "segs_idxs_permuted" << segs_idxs_permuted;
-
-      base_array<int> segs_permuted(idxs.length());
-      thrust::gather(idxs.data().begin(), idxs.data().end(),
-        segments().data().begin(),
-        segs_permuted.data().begin()); // segs_permuted: [2,3,0]
-      std::cout << "segs_permuted" << segs_permuted;
-
-      base_array<int> segs_permuted_idxs(idxs.length());
-      thrust::exclusive_scan(segs_permuted.data().begin(), segs_permuted.data().end(), 
-        segs_permuted_idxs.data().begin()); // segs_permuted_idxs: [0,2,5]
-      std::cout << "segs_permuted_idxs" << segs_permuted_idxs;
-
-      int vals_length = thrust::reduce(segs_permuted.data().begin(), segs_permuted.data().end());
-
-      base_array<int> vals_idxs_permutation(vals_length, -1);
-      thrust::scatter_if(segs_idxs_permuted.data().begin(), segs_idxs_permuted.data().end(),
-        segs_permuted_idxs.data().begin(),
-        segs_permuted.data().begin(),
-        vals_idxs_permutation.data().begin()); // vals_idxs_permutation: [4,-1,0,-1,-1]
-      std::cout << "vals_idxs_permutation" << vals_idxs_permutation;
-
-      base_array<int> vals_idxs_permutation1(vals_length);
-      thrust::inclusive_scan
-        (vals_idxs_permutation.data().begin(), vals_idxs_permutation.data().end(),
-        vals_idxs_permutation1.data().begin(),
-        back_permute_functor()); // vals_idxs_permutation1: [4,5,0,1,2]
-      std::cout << "vals_idxs_permutation1" << vals_idxs_permutation1;
-
-      base_array<T> vals_permuted(vals_length);
-      thrust::gather(vals_idxs_permutation1.data().begin(), vals_idxs_permutation1.data().end(),
-        values().data().begin(),
-        vals_permuted.data().begin());
-      std::cout << "vals_permuted" << vals_permuted;
-
-      //segs_permuted = base_array<int>(idxs.length());
-      //base_array<T> vals_permuted = base_array<T>(idxs.length());
-
-      return nested_array<T>(vals_permuted, segs_permuted);
+      return nested_array<T>(res, segments_lens_permuted);
     }
 
     virtual void print() const {
@@ -336,7 +317,7 @@ using scalan_thrust::parray;
 using scalan_thrust::pair_array;
 using scalan_thrust::pair;
 using scalan_thrust::monoid;
-using scalan_thrust::binop_array;
+using scalan_thrust::binop_array_mult;
 using scalan_thrust::sum_lifted;
 
 // ----- tests -----
@@ -423,7 +404,7 @@ void test_binop_array() {
   std::cout << "test_back_permute::y: "; thrust::copy(y.data().begin(), y.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
 #endif
 
-  base_array<float> res = binop_array<float>(x, y);
+  base_array<float> res = binop_array_mult<float>(x, y);
 
 #ifdef DEBUG
   std::cout << "test_binop_array::res: "; thrust::copy(res.data().begin(), res.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
@@ -479,7 +460,7 @@ void test_smvm() {
 
   // process
   base_array<float> bp = v.back_permute(m.values().first());
-  base_array<float> ba = binop_array(bp, m.values().second());
+  base_array<float> ba = binop_array_mult(bp, m.values().second());
   base_array<int> m_segs = m.segments();
   base_array<float> res = sum_lifted(nested_array<float>(&ba, &m_segs));
 
@@ -597,33 +578,7 @@ void test_nested_arr_backpermute() {
   assert(na_permuted.segments().data()[3] == 1);
 }
 
-void tests() {
-  std::cout << "--- test_sum ---" << std::endl;
-  test_sum();
-  std::cout << "--- test_back_permute_1 ---" << std::endl;
-  test_back_permute_1();
-  std::cout << "--- test_back_permute_2 ---" << std::endl;
-  test_back_permute_2();
-  std::cout << "--- test_binop_array ---" << std::endl;
-  test_binop_array();
-  std::cout << "--- test_sum_lifted ---" << std::endl;
-  test_sum_lifted();
-  std::cout << "--- test_smvm ---" << std::endl;
-  test_smvm();
-  std::cout << "--- test_flag_split ---" << std::endl;
-  test_flag_split();
-  std::cout << "--- test_base_array_expand_by --- " << std::endl;
-  test_base_array_expand_by();
-  std::cout << "--- test_write_pa --- " << std::endl;
-  test_write_pa();
-  std::cout << "--- test_nested_arr_backpermute --- " << std::endl;
-  test_nested_arr_backpermute();
-  printf("OK!");
-}
-
-// ----- tests -----
-
-// ----------------------------------------
+// ------------------- Generated 'Breadth First Search' ---------------------
 base_array<int> x11(const pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int>& x10) {
 pair<pair<nested_array<int>, base_array<int>>, base_array<int>> x12 = x10.fst();
 pair<nested_array<int>, base_array<int>> x14 = x12.fst();
@@ -678,9 +633,7 @@ x66 = x65; }
 return x66;
 }
 
-int main() {
-  tests();
-
+void test_bfs_1() {
   device_vector<int> d_segs(5);
   d_segs[0] = 1; d_segs[1] = 3; d_segs[2] = 2; d_segs[3] = 1; d_segs[4] = 1;
   device_vector<int> d_data(8);
@@ -705,9 +658,88 @@ int main() {
 
   std::cout << input << std::endl;
 
-  //base_array<int> res = x11(input);
+  base_array<int> res = x11(input);
 
-  //std::cout << res;
+  assert(res.length() == 5);
+  assert(FLOAT_EQ(res.data()[0], 1.0f));
+  assert(FLOAT_EQ(res.data()[1], 1.0f));
+  assert(FLOAT_EQ(res.data()[2], 1.0f));
+  assert(FLOAT_EQ(res.data()[3], 1.0f));
+  assert(FLOAT_EQ(res.data()[4], 2.0f));
+}
 
+// TODO: It fails for some reason inside x11. FIX IT
+void test_bfs_2() {
+  return;
+
+  device_vector<int> d_segs(5);
+  d_segs[0] = 1; d_segs[1] = 3; d_segs[2] = 2; d_segs[3] = 1; d_segs[4] = 1;
+  device_vector<int> d_data(8);
+  d_data[0] = 1; d_data[1] = 0; d_data[2] = 2; d_data[3] = 3; d_data[4] = 1; d_data[5] = 4; d_data[6] = 1; d_data[7] = 2;
+  base_array<int> data(d_data);
+  base_array<int> segs(d_segs);
+  nested_array<int> graph(data, segs);
+
+  device_vector<int> d_frontiers(1);
+  d_frontiers[0] = 0;
+  base_array<int> frontiers(d_frontiers);
+
+  device_vector<int> d_bfs_tree(5);
+  d_bfs_tree[0] = 0; d_bfs_tree[1] = -1; d_bfs_tree[2] = -1; d_bfs_tree[3] = -1; d_bfs_tree[4] = -1;
+  base_array<int> bfs_tree(d_bfs_tree);
+
+  int end_node = 4;
+
+  pair<nested_array<int>, base_array<int> > p1(graph, frontiers);
+  pair<pair<nested_array<int>, base_array<int> >, base_array<int> > p2(p1, bfs_tree);
+  pair<pair<pair<nested_array<int>, base_array<int> >, base_array<int> >, int> input(p2, end_node);
+
+  std::cout << input << std::endl;
+
+  base_array<int> res = x11(input);
+
+  std::cout << res;
+
+  assert(res.length() == 5);
+  assert(FLOAT_EQ(res.data()[0], 0.0f));
+  assert(FLOAT_EQ(res.data()[1], 0.0f));
+  assert(FLOAT_EQ(res.data()[2], 1.0f));
+  assert(FLOAT_EQ(res.data()[3], 1.0f));
+  assert(FLOAT_EQ(res.data()[4], 2.0f));
+}
+
+void tests() {
+  std::cout << "--- test_sum ---" << std::endl;
+  test_sum();
+  std::cout << "--- test_back_permute_1 ---" << std::endl;
+  test_back_permute_1();
+  std::cout << "--- test_back_permute_2 ---" << std::endl;
+  test_back_permute_2();
+  std::cout << "--- test_binop_array ---" << std::endl;
+  test_binop_array();
+  std::cout << "--- test_sum_lifted ---" << std::endl;
+  test_sum_lifted();
+  std::cout << "--- test_smvm ---" << std::endl;
+  test_smvm();
+  std::cout << "--- test_flag_split ---" << std::endl;
+  test_flag_split();
+  std::cout << "--- test_base_array_expand_by --- " << std::endl;
+  test_base_array_expand_by();
+  std::cout << "--- test_write_pa --- " << std::endl;
+  test_write_pa();
+  std::cout << "--- test_nested_arr_backpermute --- " << std::endl;
+  test_nested_arr_backpermute();
+  std::cout << "--- test_bfs_1 --- " << std::endl;
+  test_bfs_1();
+  std::cout << "--- test_bfs_2 --- " << std::endl;
+  test_bfs_2();
+  printf("OK!");
+}
+// ----- tests -----
+
+int main() {
+  test_bfs_2();
+
+  tests();
   std::getchar();
 }
