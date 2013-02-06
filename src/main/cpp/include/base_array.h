@@ -25,10 +25,14 @@ using thrust::reduce;
 namespace scalan_thrust {
   template <class T> class nested_array;
   template <class T1, class T2> class pair_array;
+  template <class T> class base_array;
+
+  base_array<float> sum_lifted(const nested_array<float>& na);
+  parray<int>& series(int length);
 
   template <class T>
   class base_array : public parray<T> {
-  private:   
+  private:
     ref_counter* m_ref_counter;
     device_vector<T>* m_data;
     int id;
@@ -87,14 +91,14 @@ namespace scalan_thrust {
       m_ref_counter->grab();
     }
     
-    virtual device_vector<T>& data() const { return *m_data; }
+    device_vector<T>& data() const { return *m_data; }
 
     virtual int length() const { return m_data->size(); }
-    T get(int i) { return this[i]; }
+    T get(int i) const { return (*m_data)[i]; }
 
     T sum(const monoid& m) const;
 
-    base_array<T> back_permute(const base_array<int>& idxs) const;
+    parray<T>& back_permute(const parray<int>& idxs) const;
 
     virtual void print() const;
 
@@ -104,7 +108,45 @@ namespace scalan_thrust {
     base_array<T> expand_by(const nested_array<B>& nested_arr) const;
 
     base_array<T> write_pa(const pair_array<int, T>& vals);
-  };
+
+    template <class T>
+    struct tuple_eq_functor {
+      __host__ __device__
+      int operator()(thrust::tuple<T, T> t) {
+          T x, y;
+          thrust::tie(x, y) = t;
+          return x == y;
+      }
+    };
+
+    virtual bool equals(const base_array<T>& that) const {
+      if (length() != that.length())
+        return false;
+      return thrust::transform_reduce(
+              make_zip_iterator(thrust::make_tuple(m_data->begin(), that.m_data->begin())),
+              make_zip_iterator(thrust::make_tuple(m_data->end(), that.m_data->end())),
+              tuple_eq_functor<T>(),
+              true,
+              thrust::equal_to<T>());
+    }
+
+    bool contains(T v) const {
+      return thrust::find(m_data->begin(), m_data->end(), v) != m_data->end();
+    }
+
+    parray<T>& scan() const {
+      base_array<T> res(length());
+      thrust::exclusive_scan(m_data->begin(), m_data->end(), res.m_data->begin());
+      return res;
+    }
+
+    const T& sum() const {
+      return thrust::reduce(m_data->begin(), m_data->end());
+    }
+
+    friend base_array<float> scalan_thrust::sum_lifted(const nested_array<float>& na);
+    friend parray<int>& series(int length);
+  };  
 }
 
 namespace scalan_thrust {
@@ -114,13 +156,13 @@ namespace scalan_thrust {
     T res;
     switch (m.op()) {
     case monoid::OP_PLUS:
-      res = thrust::reduce(data().begin(), data().end(), m.zero(), thrust::plus<T>());
+      res = thrust::reduce(m_data->begin(), m_data->end(), m.zero(), thrust::plus<T>());
       break;
     case monoid::OP_MINUS:
-      res = thrust::reduce(data().begin(), data().end(), m.zero(), thrust::minus<T>());
+      res = thrust::reduce(m_data->begin(), m_data->end(), m.zero(), thrust::minus<T>());
       break;
     case monoid::OP_MUL:
-      res = thrust::reduce(data().begin(), data().end(), m.zero(), thrust::multiplies<T>());
+      res = thrust::reduce(m_data->begin(), m_data->end(), m.zero(), thrust::multiplies<T>());
       break;
     default:
       // TODO: Handle an error
@@ -130,20 +172,21 @@ namespace scalan_thrust {
   }
 
   template <class T>
-  base_array<T> base_array<T>::back_permute(const base_array<int>& idxs) const { // NOTE: Can idxs be not base_array but PA?
-    base_array<T> res(idxs.data().size());
+  parray<T>& base_array<T>::back_permute(const parray<int>& idxs) const {
+    const base_array<int>& idxs_ba = dynamic_cast<const base_array<int>&>(idxs);
+    base_array<T> res(idxs.length());
     thrust::copy(
-      thrust::make_permutation_iterator(data().begin(), idxs.data().begin()),
-      thrust::make_permutation_iterator(data().end(), idxs.data().end()),
-      res.m_data->begin()); // TODO: why can't write res.m_data->begin() ?
+      thrust::make_permutation_iterator(m_data->begin(), idxs_ba.data().begin()),
+      thrust::make_permutation_iterator(m_data->end(), idxs_ba.data().end()),
+      res.m_data->begin());
     return res;
   }
 
   template <class T>
   void base_array<T>::print() const {
     std::cout << "[base_array: ";
-    for (int i = 0; i < data().size(); i++) {
-      std::cout << data()[i] << " ";
+    for (int i = 0; i < m_data->size(); i++) {
+      std::cout << get(i) << " ";
     }
     std::cout << "] " << std::endl;
   }
@@ -166,8 +209,9 @@ namespace scalan_thrust {
   base_array<T> base_array<T>::expand_by(const nested_array<B>& nested_arr) const {
     device_vector<int> expanded_indxs(nested_arr.values().length());
     device_vector<T> expanded_values(nested_arr.values().length());
-    expand(nested_arr.segments().data().begin(), nested_arr.segments().data().end(), expanded_indxs.begin());
-    thrust::gather(expanded_indxs.begin(), expanded_indxs.end(), this->data().begin(), expanded_values.begin());
+    base_array<T> nested_arr_segments_ba = dynamic_cast<base_array<T>&>(nested_arr.segments());
+    expand(nested_arr_segments_ba.m_data->begin(), nested_arr_segments_ba.m_data->end(), expanded_indxs.begin());
+    thrust::gather(expanded_indxs.begin(), expanded_indxs.end(), this->m_data->begin(), expanded_values.begin());
     return base_array<T>(expanded_values);
   }
 
@@ -183,10 +227,13 @@ namespace scalan_thrust {
 
   template <class T>
   base_array<T> base_array<T>::write_pa(const pair_array<int, T>& vals) {
-    assert(*thrust::max_element(vals.first().data().begin(), vals.first().data().end()) < this->length());
+    //assert(*thrust::max_element(vals.first().m_data->begin(), vals.first().m_data->end()) < this->length()); // TODO: Fix this assert
 
-    device_vector<T> d_vals(vals.second().data());
-    device_vector<int> d_idxs(vals.first().data());
+    const base_array<T>& vals_snd_ba = dynamic_cast<const base_array<T>&>(vals.second());
+    device_vector<T> d_vals(vals_snd_ba.data());
+
+    const base_array<int>& vals_fst_ba = dynamic_cast<const base_array<int>&>(vals.first());
+    device_vector<int> d_idxs(vals_fst_ba.data());
 
     thrust::sort_by_key(d_idxs.begin(), d_idxs.end(), d_vals.begin());
 

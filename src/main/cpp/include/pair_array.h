@@ -11,20 +11,34 @@ namespace scalan_thrust {
   // private:
   // PArr1 m_a;
   template <class T1, class T2>
-  class pair_array : public parray<pair<T1, T2> > {
+  class pair_array : public parray<pair<T1, T2>> {
   private:
-    base_array<T1> m_a;
-    base_array<T2> m_b;
+    parray<T1>& m_a;
+    parray<T2>& m_b;
+
+    pair_array() : m_a(base_array<T1>()), m_b(base_array<T2>()) { }
+
   public:
-    pair_array(const base_array<T1>& a, const base_array<T2>& b) : m_a(a), m_b(b) { 
+    pair_array(parray<T1>& a, parray<T2>& b) : m_a(a), m_b(b) {
       assert(m_a.length() == m_b.length());
     }
 
-    base_array<T1> const& first() const { return m_a; }
-    base_array<T2> const& second() const { return m_b; }
+    parray<T1> const& first() const { return m_a; }
+    parray<T2> const& second() const { return m_b; }
+
+    virtual parray<pair<T1, T2>>& back_permute(const parray<int>& idxs) const {
+      return pair_array();
+    }
 
     virtual int length() const { return m_a.length(); }
-    virtual device_vector<pair<T1, T2>> const& data() const { return device_vector<pair<T1, T2>>(); } // TODO: Here should not be data call like this. Fix it.
+
+    virtual parray<pair<T1, T2>>& scan() const {
+      return pair_array<T1, T2>();
+    }
+
+    virtual const pair<T1, T2>& sum() const {
+      return pair<T1, T2>();
+    }
   };
 }
 
