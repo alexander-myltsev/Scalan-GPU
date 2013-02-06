@@ -119,12 +119,13 @@ namespace scalan_thrust {
       }
     };
 
-    virtual bool equals(const base_array<T>& that) const {
+    virtual bool equals(const parray<T>& that) const {
       if (length() != that.length())
         return false;
+      const base_array<T>& that_ba = dynamic_cast<const base_array<T>&>(that);
       return thrust::transform_reduce(
-              make_zip_iterator(thrust::make_tuple(m_data->begin(), that.m_data->begin())),
-              make_zip_iterator(thrust::make_tuple(m_data->end(), that.m_data->end())),
+              make_zip_iterator(thrust::make_tuple(m_data->begin(), that_ba.m_data->begin())),
+              make_zip_iterator(thrust::make_tuple(m_data->end(), that_ba.m_data->end())),
               tuple_eq_functor<T>(),
               true,
               thrust::equal_to<T>());
@@ -174,12 +175,12 @@ namespace scalan_thrust {
   template <class T>
   parray<T>& base_array<T>::back_permute(const parray<int>& idxs) const {
     const base_array<int>& idxs_ba = dynamic_cast<const base_array<int>&>(idxs);
-    base_array<T> res(idxs.length());
+    base_array<T> *res = new base_array<T>(idxs.length());
     thrust::copy(
       thrust::make_permutation_iterator(m_data->begin(), idxs_ba.data().begin()),
       thrust::make_permutation_iterator(m_data->end(), idxs_ba.data().end()),
-      res.m_data->begin());
-    return res;
+      res->m_data->begin());
+    return *res;
   }
 
   template <class T>
