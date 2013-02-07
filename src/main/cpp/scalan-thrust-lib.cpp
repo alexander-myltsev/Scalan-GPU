@@ -185,8 +185,9 @@ namespace scalan_thrust {
     int non_zero_values_count = thrust::count_if(segs.m_data->begin(), segs.m_data->end(), is_positive());
     base_array<float> res_values(non_zero_values_count);
     base_array<int> segs_d(segs.length());
+    base_array<float> na_vals_ba = dynamic_cast<base_array<float>&>(na.values());
     thrust::reduce_by_key(segs_keys.m_data->begin(), segs_keys.m_data->end(),
-      dynamic_cast<base_array<int>&>(na.values()).m_data->begin(), segs_d.m_data->begin(), res_values.m_data->begin());
+      na_vals_ba.m_data->begin(), segs_d.m_data->begin(), res_values.m_data->begin());
 
     thrust::unique(segs_keys.m_data->begin(), segs_keys.m_data->end());
 
@@ -305,7 +306,8 @@ void test_binop_array() {
 
   assert(res.length() == x.length());  
   for (int i = 0; i < x.length(); i++) {
-    assert(FLOAT_EQ(res.get(i), x.get(i) * y.get(i)));
+    float rv = res.get(i), xv = x.get(i), yv = y.get(i);
+    assert(FLOAT_EQ(rv, xv * yv));
   }
 }
 
