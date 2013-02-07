@@ -94,7 +94,12 @@ namespace scalan_thrust {
     device_vector<T>& data() const { return *m_data; }
 
     virtual int length() const { return m_data->size(); }
-    T get(int i) const { return (*m_data)[i]; }
+    virtual T& get(int idx) const { 
+      // TODO: This is a nasty hack to break "cannot convert from 'thrust::device_reference<T>' to 'int &'" compilation error
+      static T v;
+      v = (*m_data)[idx];
+      return v;
+    }
 
     T sum(const monoid& m) const;
 
@@ -175,7 +180,7 @@ namespace scalan_thrust {
   template <class T>
   parray<T>& base_array<T>::back_permute(const parray<int>& idxs) const {
     const base_array<int>& idxs_ba = dynamic_cast<const base_array<int>&>(idxs);
-    base_array<T> *res = new base_array<T>(idxs.length());
+    base_array<T>* res = new base_array<T>(idxs.length()); // TODO: Fix this memory leak
     thrust::copy(
       thrust::make_permutation_iterator(m_data->begin(), idxs_ba.data().begin()),
       thrust::make_permutation_iterator(m_data->end(), idxs_ba.data().end()),

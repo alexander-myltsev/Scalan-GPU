@@ -39,6 +39,12 @@ namespace scalan_thrust {
     virtual const pair<T1, T2>& sum() const {
       return pair<T1, T2>();
     }
+
+    virtual pair<T1, T2>& get(int idx) const { 
+      T1 v1 = m_a.get(idx);
+      T2 v2 = m_b.get(idx);
+      return pair<T1, T2>(v1, v2);
+    }
   };
 }
 

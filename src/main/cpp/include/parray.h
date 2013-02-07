@@ -12,6 +12,7 @@ namespace scalan_thrust {
     virtual parray<T>& back_permute(const parray<int>& idxs) const = 0;
     virtual void print() const { printf("Not implemented\n"); }
     virtual bool equals(const parray<T>& that) const { return false; } // TODO: Make it pure function
+    virtual T& get(int idx) const = 0;
     
     // TODO: Add monoid and zero element 
     virtual parray<T>& scan() const = 0;

@@ -127,7 +127,13 @@ namespace scalan_thrust {
     parray<int>& segments() const { return m_segments; }
     parray<T>& values() const { return m_values; }
     virtual int length() const { return segments().length(); }
-    //virtual device_vector<T> const& data() const { return values().data(); }
+
+    virtual parray<T>& get(int idx) const { 
+      host_vector<int> idxs_hv(1, idx);
+      base_array<int> idxs(idxs_hv);
+      nested_array<T> na = dynamic_cast<nested_array<T>&>(this->back_permute(idxs));
+      return na.m_values;
+    }
 
     //base_array<T> map(const unary_operation<T>& op) {
     //parray<T> map(const unary_operation<T>& op) {
@@ -367,12 +373,11 @@ void test_back_permute_1() {
 
   parray<float>& permutation = ba.back_permute(idxs);
 
-  base_array<float> permutation_ba = dynamic_cast<base_array<float>&>(permutation);
   assert(permutation.length() == idxs_data.size());
-  assert(FLOAT_EQ(permutation_ba.get(0), ba.get(2)));
-  assert(FLOAT_EQ(permutation_ba.get(1), ba.get(1)));
-  assert(FLOAT_EQ(permutation_ba.get(2), ba.get(4)));
-  assert(FLOAT_EQ(permutation_ba.get(3), ba.get(8)));
+  assert(FLOAT_EQ(permutation.get(0), ba.get(2)));
+  assert(FLOAT_EQ(permutation.get(1), ba.get(1)));
+  assert(FLOAT_EQ(permutation.get(2), ba.get(4)));
+  assert(FLOAT_EQ(permutation.get(3), ba.get(8)));
 
 #ifdef DEBUG
   std::cout << "test_back_permute::ba (should be same): "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
