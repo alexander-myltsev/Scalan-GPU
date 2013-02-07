@@ -270,7 +270,12 @@ void test_back_permute_2() {
   parray<float>& permutation = ba.back_permute(idxs);
   // TODO: Fix floating number comparison
   assert(permutation.length() == idxs_data.size());
-  assert(permutation.equals(ba));
+  assert(FLOAT_EQ(permutation.get(0), ba.get(2)));
+  assert(FLOAT_EQ(permutation.get(1), ba.get(1)));
+  assert(FLOAT_EQ(permutation.get(2), ba.get(3)));
+  assert(FLOAT_EQ(permutation.get(3), ba.get(0)));
+  assert(FLOAT_EQ(permutation.get(4), ba.get(2)));
+  assert(FLOAT_EQ(permutation.get(5), ba.get(0)));
 
 #ifdef DEBUG
   std::cout << "test_back_permute::ba (should be same): "; thrust::copy(ba.data().begin(), ba.data().end(), std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
