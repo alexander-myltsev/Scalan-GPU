@@ -118,7 +118,8 @@ namespace scalan_thrust {
     base_array<int> segments_movement_diff = binop_array_sub(segments_idxs_permuted, segments_permuted_idxs);
     std::cout << "segments_movement_diff: " << segments_movement_diff;
 
-    parray<int>& idxs_new_data = series(segments_lens_permuted.sum());
+    int len = segments_lens_permuted.sum();
+    parray<int>& idxs_new_data = series(len);
     std::cout << "idxs_new_data: " << idxs_new_data;
     nested_array<int> idxs_new(idxs_new_data, segments_lens_permuted);
     std::cout << "idxs_new: " << idxs_new;
@@ -129,7 +130,9 @@ namespace scalan_thrust {
     parray<T>& res = m_values.back_permute(a5);
     std::cout << "res: " << res;
 
-    return nested_array<T>(res, segments_lens_permuted);
+    // TODO: Fix this memory leak
+    nested_array<T>* na = new nested_array<T>(res, segments_lens_permuted);
+    return *na;
   }
 }
 

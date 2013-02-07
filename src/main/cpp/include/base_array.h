@@ -141,9 +141,10 @@ namespace scalan_thrust {
     }
 
     parray<T>& scan() const {
-      base_array<T> res(length());
-      thrust::exclusive_scan(m_data->begin(), m_data->end(), res.m_data->begin());
-      return res;
+      // TODO: Fix this memory leak
+      base_array<T>* res = new base_array<T>(length());
+      thrust::exclusive_scan(m_data->begin(), m_data->end(), res->m_data->begin());
+      return *res;
     }
 
     const T& sum() const {

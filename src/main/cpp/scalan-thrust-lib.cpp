@@ -55,7 +55,7 @@ namespace scalan_thrust {
   }
 
   template <class T>
-  base_array<T>& binop_array_sub(const parray<T>& a, const parray<T>& b) {
+  base_array<T> binop_array_sub(const parray<T>& a, const parray<T>& b) {
     assert(a.length() == b.length());
 
     const base_array<T>& a1 = dynamic_cast<const base_array<T>&>(a);
@@ -70,7 +70,7 @@ namespace scalan_thrust {
   }
 
   template <class T>
-  base_array<T>& binop_array_add(const parray<T>& a, const parray<T>& b) {
+  base_array<T> binop_array_add(const parray<T>& a, const parray<T>& b) {
     assert(a.length() == b.length());
 
     const base_array<T>& a1 = dynamic_cast<const base_array<T>&>(a);
@@ -85,7 +85,7 @@ namespace scalan_thrust {
   }
 
   template <class T>
-  base_array<T>& binop_array_equal(const parray<T>& a, const parray<T>& b) {
+  base_array<T> binop_array_equal(const parray<T>& a, const parray<T>& b) {
     assert(a.length() == b.length());
 
     const base_array<T>& a1 = dynamic_cast<const base_array<T>&>(a);
@@ -167,10 +167,12 @@ namespace scalan_thrust {
   };
 
   parray<int>& series(int length) {
-    base_array<int> res;
-    res.m_data = new device_vector<int>(thrust::counting_iterator<int>(0), thrust::counting_iterator<int>(0) + length);
-    res.m_ref_counter = new ref_counter();
-    return res;
+    base_array<int>* res = new base_array<int>(); // TODO: Fix this memory leak
+    device_vector<int>* data = new device_vector<int>(length); // TODO: Rewrite it with counting iterator
+    for (int i = 0; i < length; i++) (*data)[i] = i;
+    res->m_data = data;
+    res->m_ref_counter = new ref_counter();
+    return *res;
   }
 
   base_array<float> sum_lifted(const nested_array<float>& na) {
@@ -460,19 +462,17 @@ void test_nested_arr_backpermute() {
   parray<parray<float>>& na_permuted = na.back_permute(permutation);
 
   nested_array<float> na_cast = dynamic_cast<nested_array<float>&>(na_permuted);
-  base_array<float> na_values_cast = dynamic_cast<base_array<float>&>(na_cast.values());
-  base_array<int> na_segs_cast = dynamic_cast<base_array<int>&>(na_cast.segments());
-  assert(FLOAT_EQ(na_values_cast.get(0), 5.f));
-  assert(FLOAT_EQ(na_values_cast.get(1), 6.f));
-  assert(FLOAT_EQ(na_values_cast.get(2), 1.f));
-  assert(FLOAT_EQ(na_values_cast.get(3), 2.f));
-  assert(FLOAT_EQ(na_values_cast.get(4), 3.f));
-  assert(FLOAT_EQ(na_values_cast.get(5), 4.f));
+  assert(FLOAT_EQ(na_cast.values().get(0), 5.f));
+  assert(FLOAT_EQ(na_cast.values().get(1), 6.f));
+  assert(FLOAT_EQ(na_cast.values().get(2), 1.f));
+  assert(FLOAT_EQ(na_cast.values().get(3), 2.f));
+  assert(FLOAT_EQ(na_cast.values().get(4), 3.f));
+  assert(FLOAT_EQ(na_cast.values().get(5), 4.f));
 
-  assert(na_segs_cast.get(0) == 2);
-  assert(na_segs_cast.get(1) == 3);
-  assert(na_segs_cast.get(2) == 0);
-  assert(na_segs_cast.get(3) == 1);
+  assert(na_cast.segments().get(0) == 2);
+  assert(na_cast.segments().get(1) == 3);
+  assert(na_cast.segments().get(2) == 0);
+  assert(na_cast.segments().get(3) == 1);
 }
 
 // ------------------- Generated 'Breadth First Search' ---------------------
