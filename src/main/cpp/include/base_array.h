@@ -42,6 +42,11 @@ namespace scalan_thrust {
       return id_count++;
     }
 
+    parray<T>& clone() {
+      m_ref_counter->grab();
+      return *this;
+    }
+
   public:
     base_array() { }
 
@@ -141,10 +146,9 @@ namespace scalan_thrust {
     }
 
     parray<T>& scan() const {
-      // TODO: Fix this memory leak
-      base_array<T>* res = new base_array<T>(length());
-      thrust::exclusive_scan(m_data->begin(), m_data->end(), res->m_data->begin());
-      return *res;
+      base_array<T> res(length());
+      thrust::exclusive_scan(m_data->begin(), m_data->end(), res.m_data->begin());
+      return res.clone();
     }
 
     const T& sum() const {

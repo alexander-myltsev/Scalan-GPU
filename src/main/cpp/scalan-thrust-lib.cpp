@@ -637,6 +637,8 @@ void tests() {
 // ----- tests -----
 
 int main() {
+  test_nested_arr_backpermute();
+
   tests();
   std::getchar();
 }
